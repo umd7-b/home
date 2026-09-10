@@ -1,15 +1,13 @@
 server:
-  port: 8081
+  port: ${PORT:8081}
+
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/room_expense?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true
-    username: root
-    password: 123456
+    url: ${DB_URL:jdbc:mysql://localhost:3306/expense_manager?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:123456}
   jpa:
     hibernate:
-      ddl-auto: validate
-    show-sql: true
+      ddl-auto: update
+    show-sql: false
     open-in-view: false
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
