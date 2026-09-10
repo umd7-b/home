@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tổng Kết Chi Tiêu</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
+      .amount-positive {
+        color: #198754;
+        font-weight: bold;
+      }
+      .amount-negative {
+        color: #dc3545;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+      <div class="container">
+        <a class="navbar-brand" href="/">🏠 Chi Tiêu Nhà</a>
+        <div class="d-flex">
+          <a href="/" class="btn btn-light btn-sm">🔙 Về Trang Lịch</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container">
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <h4 class="card-title mb-3">Lọc Dữ Liệu</h4>
+          <form id="filterForm" class="row g-3 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label">Từ ngày</label>
+              <input type="date" class="form-control" id="fromDate" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Đến ngày</label>
+              <input type="date" class="form-control" id="toDate" required />
+            </div>
+            <div class="col-md-4">
+              <button type="submit" class="btn btn-primary w-100">
+                Xem Tổng Kết
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 text-center">
+              <thead class="table-light">
+                <tr>
+                  <th class="text-start">Thành Viên</th>
+                  <th>Tổng Đã Chi (VNĐ)</th>
+                  <th>Tổng Phải Chịu (VNĐ)</th>
+                  <th>Số Dư (VNĐ)</th>
+                </tr>
+              </thead>
+              <tbody id="summaryTableBody">
+                <!-- Dữ liệu JS sẽ render vào đây -->
+                <tr>
+                  <td colspan="4" class="text-muted py-4">
+                    Vui lòng chọn ngày và bấm Xem Tổng Kết
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- Thêm bảng này vào ngay dưới bảng Tổng kết chia tiền -->
+      <div class="card shadow-sm mt-4">
+        <div class="card-body p-0">
+          <h5 class="card-title p-3 mb-0 bg-light border-bottom">
+            Thống Kê Theo Từng Bữa
+          </h5>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 text-center">
+              <thead class="table-secondary">
+                <tr>
+                  <th>Ngày</th>
+                  <th>Đồ Chung</th>
+                  <th>Sáng</th>
+                  <th>Trưa</th>
+                  <th>Tối</th>
+                  <th>Tổng Ngày</th>
+                  <th>Người trả</th>
+                </tr>
+              </thead>
+              <tbody id="dailyStatsBody">
+                <!-- Dữ liệu render từ JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal fade" id="payerDetailsModal" tabindex="-1">
+      <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="payerDetailsTitle">
+              Chi tiết người trả
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body" id="payerDetailsBody">
+            <!-- JS sẽ render danh sách vào đây -->
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      <!-- Modal Chi tiết người trả tiền -->
+
+      // Mặc định set ngày đầu tháng đến cuối tháng hiện tại
+      const date = new Date();
+      const firstDay = new Date(date.getFullYear(), date.getMonth(), 1)
+        .toISOString()
+        .split("T")[0];
+      const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0)
+        .toISOString()
+        .split("T")[0];
+
+      document.getElementById("fromDate").value = firstDay;
+      document.getElementById("toDate").value = lastDay;
+
+      // Hàm format tiền tệ VNĐ
+      const formatMoney = (amount) => {
+        return new Intl.NumberFormat("vi-VN").format(amount);
+      };
+
+      document
+        .getElementById("filterForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+          const from = document.getElementById("fromDate").value;
+          const to = document.getElementById("toDate").value;
+
+          // 1. Load Bảng Tổng Kết Chia Tiền
+          fetch(`/api/summary?from=${from}&to=${to}`)
+            .then((res) => res.json())
+            .then((data) => {
+              const tbody = document.getElementById("summaryTableBody");
+              tbody.innerHTML = "";
+
+              data.forEach((m) => {
+                let balanceClass = "";
+                let balanceText = formatMoney(m.balance);
+
+                if (m.balance > 0) {
+                  balanceClass = "amount-positive";
+                  balanceText = "+" + balanceText;
+                } else if (m.balance < 0) {
+                  balanceClass = "amount-negative";
+                }
+
+                tbody.innerHTML += `
+                              <tr>
+                                  <td class="text-start fw-bold">
+                                      <span style="color: ${m.avatarColor}">●</span> ${m.memberName}
+                                  </td>
+                                  <td>${formatMoney(m.totalPaid)}</td>
+                                  <td>${formatMoney(m.totalOwed)}</td>
+                                  <td class="${balanceClass}">${balanceText}</td>
+                              </tr>
+                          `;
+              });
+            });
+
+          // 2. Load Bảng Thống Kê Theo Ngày
+          fetch(`/api/statistics/daily?from=${from}&to=${to}`)
+            .then((res) => res.json())
+            .then((data) => {
+              const tbody = document.getElementById("dailyStatsBody");
+              tbody.innerHTML = "";
+              if (data.length === 0) {
+                tbody.innerHTML =
+                  '<tr><td colspan="6" class="text-muted py-3">Không có chi tiêu nào</td></tr>';
+                return;
+              }
+              data.forEach((row) => {
+                const detailsJson = encodeURIComponent(
+                  JSON.stringify(row.payerDetails),
+                );
+                tbody.innerHTML += `
+                            <tr>
+                                <td class="fw-bold">${row.date}</td>
+                                <td>${formatMoney(row.shared)}</td>
+                                <td>${formatMoney(row.breakfast)}</td>
+                                <td>${formatMoney(row.lunch)}</td>
+                                <td>${formatMoney(row.dinner)}</td>
+                                <td class="text-danger fw-bold" style="cursor: pointer; text-decoration: underline;"
+                                    onclick="showPayerDetails('${detailsJson}', '${row.date}')" title="Bấm để xem chi tiết">
+                                    ${formatMoney(row.total)}
+                                </td>
+                                <td class="fst-italic text-secondary" style="font-size: 0.9em;">${row.payers}</td>
+                            </tr>
+                        `;
+              });
+            });
+        });
+
+      // Tự động load dữ liệu ngay khi vào trang
+
+      document.getElementById("filterForm").dispatchEvent(new Event("submit"));
+      // Hàm hiển thị Modal chi tiết tiền
+      function showPayerDetails(jsonStr, date) {
+        const details = JSON.parse(decodeURIComponent(jsonStr));
+        let html = '<ul class="list-group list-group-flush">';
+        for (const [name, amount] of Object.entries(details)) {
+          html += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        ${name}
+                        <span class="fw-bold text-primary">${formatMoney(amount)} đ</span>
+                    </li>`;
+        }
+        html += "</ul>";
+
+        document.getElementById("payerDetailsTitle").innerText =
+          "Chi tiết trả ngày " + date;
+        document.getElementById("payerDetailsBody").innerHTML = html;
+        new bootstrap.Modal(
+          document.getElementById("payerDetailsModal"),
+        ).show();
+      }
+    </script>
+  </body>
+</html>
