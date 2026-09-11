@@ -54,10 +54,10 @@ public class SummaryService {
 
             int participantCount = expense.getParticipantMemberIds().size();
             if (participantCount > 0) {
-                // Làm tròn phần chia cho mỗi người đến hàng NGHÌN (VND) để loại bỏ số lẻ
+                // Làm tròn phần chia cho mỗi người LUÔN LÀM TRÒN LÊN hàng NGHÌN (VND)
                 BigDecimal splitAmount = expense.getTotalAmount()
-                        .divide(BigDecimal.valueOf(participantCount), 0, RoundingMode.HALF_UP)
-                        .divide(BigDecimal.valueOf(1000), 0, RoundingMode.HALF_UP)
+                        .divide(BigDecimal.valueOf(participantCount), 2, RoundingMode.UP)
+                        .divide(BigDecimal.valueOf(1000), 0, RoundingMode.UP)
                         .multiply(BigDecimal.valueOf(1000));
 
                 expense.getParticipantMemberIds().forEach(pId -> {
@@ -191,12 +191,12 @@ public class SummaryService {
             }
             row.put("participantDetails", participantsList);
             
-            // Tính số tiền mỗi người phải chịu (làm tròn đến hàng nghìn)
+            // Tính số tiền mỗi người phải chịu (luôn làm tròn lên hàng nghìn)
             int participantCount = e.getParticipantMemberIds().size();
             if (participantCount > 0) {
                 BigDecimal splitAmount = e.getTotalAmount()
-                        .divide(BigDecimal.valueOf(participantCount), 0, RoundingMode.HALF_UP)
-                        .divide(BigDecimal.valueOf(1000), 0, RoundingMode.HALF_UP)
+                        .divide(BigDecimal.valueOf(participantCount), 2, RoundingMode.UP)
+                        .divide(BigDecimal.valueOf(1000), 0, RoundingMode.UP)
                         .multiply(BigDecimal.valueOf(1000));
                 row.put("splitPerPerson", splitAmount);
             } else {
