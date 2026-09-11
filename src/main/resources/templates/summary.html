@@ -104,6 +104,28 @@
           </div>
         </div>
       </div>
+      <!-- Bảng Lịch Sử Từng Hóa Đơn -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+          <h5 class="mb-0">Chi Tiết Từng Hóa Đơn</h5>
+        </div>
+        <div class="card-body p-0 table-responsive">
+          <table class="table table-hover mb-0 text-center align-middle">
+            <thead class="table-secondary">
+              <tr>
+                <th>Ngày</th>
+                <th>Loại</th>
+                <th>Nội Dung</th>
+                <th>Tổng Tiền</th>
+                <th>Chi Tiết</th>
+              </tr>
+            </thead>
+            <tbody id="billHistoryBody">
+              <!-- JS sẽ render hóa đơn vào đây -->
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
     <div class="modal fade" id="payerDetailsModal" tabindex="-1">
       <div class="modal-dialog modal-sm modal-dialog-centered">
@@ -214,13 +236,44 @@
                         `;
               });
             });
+          // 3. Load Lịch Sử Từng Hóa Đơn (Thêm mới)
+          fetch(`/api/statistics/history?from=${from}&to=${to}`)
+            .then((res) => res.json())
+            .then((data) => {
+              const tbody = document.getElementById("billHistoryBody");
+              tbody.innerHTML = "";
+              if (data.length === 0) {
+                tbody.innerHTML =
+                  '<tr><td colspan="5" class="text-muted py-3">Không có hóa đơn nào</td></tr>';
+                return;
+              }
+              data.forEach((row) => {
+                const detailsJson = encodeURIComponent(
+                  JSON.stringify(row.payerDetails),
+                );
+                tbody.innerHTML += `
+                            <tr>
+                                <td class="fw-bold">${row.date}</td>
+                                <td><span class="badge bg-info text-dark">${row.type}</span></td>
+                                <td class="text-start">${row.description}</td>
+                                <td class="text-danger fw-bold">${formatMoney(row.total)}</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                        onclick="showPayerDetails('${detailsJson}', 'Nội dung: ${row.description}')">
+                                        Xem người trả
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+              });
+            });
         });
 
       // Tự động load dữ liệu ngay khi vào trang
 
       document.getElementById("filterForm").dispatchEvent(new Event("submit"));
       // Hàm hiển thị Modal chi tiết tiền
-      function showPayerDetails(jsonStr, date) {
+      function showPayerDetails(jsonStr, titleText) {
         const details = JSON.parse(decodeURIComponent(jsonStr));
         let html = '<ul class="list-group list-group-flush">';
         for (const [name, amount] of Object.entries(details)) {
@@ -232,8 +285,13 @@
         }
         html += "</ul>";
 
-        document.getElementById("payerDetailsTitle").innerText =
+        /* document.getElementById("payerDetailsTitle").innerText =
           "Chi tiết trả ngày " + date;
+        document.getElementById("payerDetailsBody").innerHTML = html;
+        new bootstrap.Modal(
+          document.getElementById("payerDetailsModal"),
+        ).show(); */
+        document.getElementById("payerDetailsTitle").innerText = titleText;
         document.getElementById("payerDetailsBody").innerHTML = html;
         new bootstrap.Modal(
           document.getElementById("payerDetailsModal"),

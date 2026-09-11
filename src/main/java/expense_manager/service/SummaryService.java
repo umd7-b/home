@@ -121,5 +121,44 @@ public class SummaryService {
         }
         return result;
     }
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getDetailedExpenses(LocalDate from, LocalDate to) {
+        List<Expense> expenses = expenseRepository.findByExpenseDateBetween(from, to);
+        
+        // Sắp xếp để hóa đơn mới nhất hiện lên trên cùng
+        expenses.sort((a, b) -> b.getExpenseDate().compareTo(a.getExpenseDate()));
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Expense e : expenses) {
+            Map<String, Object> row = new HashMap<>();
+            row.put("id", e.getId());
+            row.put("date", e.getExpenseDate());
+            row.put("description", e.getDescription()); // Lấy nội dung bill (VD: Gà rán)
+            row.put("total", e.getTotalAmount());
+            
+            // Chuyển loại chi tiêu sang tiếng Việt
+            String typeVN = "";
+            if (e.getType() != null) {
+                switch (e.getType().name()) {
+                    case "BREAKFAST": typeVN = "Sáng"; break;
+                    case "LUNCH": typeVN = "Trưa"; break;
+                    case "DINNER": typeVN = "Tối"; break;
+                    case "SHARED": typeVN = "Đồ Chung"; break;
+                    default: typeVN = e.getType().name();
+                }
+            }
+            row.put("type", typeVN);
+            
+            // Lấy chính xác ai trả bao nhiêu cho riêng bill này
+            Map<String, BigDecimal> payersMap = new HashMap<>();
+            e.getPayers().forEach(payer -> {
+                payersMap.put(payer.getMember().getName(), payer.getAmountPaid());
+            });
+            row.put("payerDetails", payersMap);
+            
+            result.add(row);
+        }
+        return result;
+    }
 }
 

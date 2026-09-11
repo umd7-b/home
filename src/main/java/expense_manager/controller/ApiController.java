@@ -53,6 +53,7 @@ public class ApiController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return summaryService.getSummary(from, to);
     }
+
     @PostMapping("/members")
     public ResponseEntity<String> addGuest(@RequestParam String name) {
         Member m = new Member();
@@ -68,5 +69,12 @@ public class ApiController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return summaryService.getDailyStatistics(from, to);
+    }
+
+    @GetMapping("/statistics/history")
+    public ResponseEntity<List<Map<String, Object>>> getDetailedExpenses(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(summaryService.getDetailedExpenses(from, to));
     }
 }
