@@ -380,6 +380,31 @@
       </div>
     </div>
 
+    <!-- Modal Thanh Toán QR -->
+    <div class="modal fade" id="qrPaymentModal" tabindex="-1">
+      <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-warning text-dark">
+            <h5 class="modal-title fw-bold">
+              <i class="bi bi-qr-code-scan me-2"></i>Thanh Toán
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-center">
+            <h6 class="fw-bold mb-1" id="qrPaymentTarget">Đang chuyển cho: ...</h6>
+            <h4 class="text-danger fw-bold mb-3" id="qrPaymentAmount">0 đ</h4>
+            <div class="qr-container mb-3" style="border: 2px dashed #ccc; padding: 10px; border-radius: 10px; background: #f8f9fa;">
+              <img id="qrPaymentImage" src="" alt="QR Code" style="width: 100%; max-width: 200px; border-radius: 8px;">
+            </div>
+            <p class="text-muted small mb-3">Quét mã QR bằng ứng dụng ngân hàng để thanh toán chính xác số tiền.</p>
+            <button id="btnConfirmQrSettlement" class="btn btn-success w-100 fw-bold rounded-pill">
+              <i class="bi bi-check-circle-fill me-1"></i>Đã Chuyển Khoản Xong
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       // Mặc định set ngày đầu tháng đến cuối tháng hiện tại
@@ -628,8 +653,8 @@
                     </span>
                   </div>
                   <button class="btn btn-confirm-pay"
-                    onclick="confirmSettlement(${debt.fromMemberId}, ${debt.toMemberId}, ${debt.amount}, '${from}', '${to}')">
-                    <i class="bi bi-check-lg me-1"></i>Xác nhận đã thanh toán
+                    onclick="openQrModal(${debt.fromMemberId}, '${debt.fromName}', ${debt.toMemberId}, '${debt.toName}', ${debt.amount}, '${from}', '${to}')">
+                    <i class="bi bi-qr-code-scan me-1"></i>Thanh toán
                   </button>
                 </div>`;
             });
@@ -689,7 +714,32 @@
 
       // === ACTIONS ===
 
-      // Xác nhận thanh toán
+      // Mở modal QR
+      function openQrModal(fromId, fromName, toId, toName, amount, periodFrom, periodTo) {
+        // Cập nhật text
+        document.getElementById("qrPaymentTarget").innerText = `Đang chuyển cho: ${toName}`;
+        document.getElementById("qrPaymentAmount").innerText = formatMoney(amount) + ' đ';
+
+        // Set ảnh QR dựa trên tên (tên không dấu, chữ thường)
+        // Ví dụ: Tu -> tu.png, Quang -> quang.png
+        // Bỏ dấu tiếng việt nếu có và chuyển thành chữ thường
+        const normalizedName = toName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        document.getElementById("qrPaymentImage").src = `/qr/${normalizedName}.png`;
+
+        // Gán sự kiện cho nút Xác nhận bên trong modal
+        const confirmBtn = document.getElementById("btnConfirmQrSettlement");
+        confirmBtn.onclick = function() {
+          const myModal = bootstrap.Modal.getInstance(document.getElementById('qrPaymentModal'));
+          if(myModal) myModal.hide();
+          confirmSettlement(fromId, toId, amount, periodFrom, periodTo);
+        };
+
+        // Hiển thị modal
+        const qrModal = new bootstrap.Modal(document.getElementById("qrPaymentModal"));
+        qrModal.show();
+      }
+
+      // Xác nhận thanh toán (Gọi API sau khi tắt modal QR)
       function confirmSettlement(fromId, toId, amount, periodFrom, periodTo) {
         if (!confirm(`Xác nhận thanh toán ${formatMoney(amount)} đ?`)) return;
 
