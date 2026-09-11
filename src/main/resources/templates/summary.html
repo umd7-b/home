@@ -286,11 +286,14 @@
             <i class="bi bi-clock-history me-2"></i>Lịch Sử Thanh Toán
           </h5>
         </div>
-        <div class="card-body" id="settlementHistory">
-          <div class="empty-state">
-            <i class="bi bi-journal-check"></i>
-            Chưa có thanh toán nào
+        <div class="card-body">
+          <div id="settlementHistory">
+            <div class="empty-state">
+              <i class="bi bi-journal-check"></i>
+              Chưa có thanh toán nào
+            </div>
           </div>
+          <div id="settlementPagination" class="mt-3 d-flex justify-content-center gap-2"></div>
         </div>
       </div>
 
@@ -324,10 +327,14 @@
 
       <!-- Chi Tiết Từng Hóa Đơn -->
       <div class="card shadow-sm mb-4 animate-in">
-        <div class="card-header-bill">
+        <div class="card-header-bill d-flex justify-content-between align-items-center flex-wrap gap-2">
           <h5 class="mb-0">
             <i class="bi bi-receipt-cutoff me-2"></i>Chi Tiết Từng Hóa Đơn
           </h5>
+          <div class="d-flex align-items-center gap-2" style="max-width: 200px;">
+            <label for="billFilterDate" class="text-white small mb-0 fw-bold text-nowrap">Lọc ngày:</label>
+            <input type="date" id="billFilterDate" class="form-control form-control-sm" onchange="filterBillsByDate()">
+          </div>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
@@ -346,6 +353,7 @@
               </tbody>
             </table>
           </div>
+          <div id="billPagination" class="p-3 d-flex justify-content-center gap-2 border-top"></div>
         </div>
       </div>
     </div>
@@ -553,23 +561,62 @@
           });
       }
 
+      // State for pagination
+      let allBills = [];
+      let currentBillPage = 1;
+      const billsPerPage = 20;
+
+      let allSettlements = [];
+      let currentSettlementPage = 1;
+      const settlementsPerPage = 20;
+
       // 3. Chi Tiết Từng Hóa Đơn
       function loadBillHistory(from, to) {
         fetch(`/api/statistics/history?from=${from}&to=${to}`)
           .then((res) => res.json())
           .then((data) => {
-            const tbody = document.getElementById("billHistoryBody");
-            tbody.innerHTML = "";
-            if (data.length === 0) {
-              tbody.innerHTML = `<tr><td colspan="6" class="empty-state">
-                <i class="bi bi-receipt"></i>Không có hóa đơn nào</td></tr>`;
-              return;
-            }
+            allBills = data;
+            document.getElementById("billFilterDate").value = ''; // Reset filter
+            currentBillPage = 1;
+            renderBills();
+          });
+      }
 
-            let billTotal = 0;
+      function filterBillsByDate() {
+        currentBillPage = 1;
+        renderBills();
+      }
 
-            data.forEach((row) => {
-              billTotal += row.total;
+      function renderBills() {
+        const tbody = document.getElementById("billHistoryBody");
+        const pagination = document.getElementById("billPagination");
+        const filterDate = document.getElementById("billFilterDate").value;
+
+        // Apply filter
+        let filteredData = allBills;
+        if (filterDate) {
+            filteredData = allBills.filter(row => row.date === filterDate);
+        }
+
+        tbody.innerHTML = "";
+        
+        if (filteredData.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" class="empty-state">
+            <i class="bi bi-receipt"></i>Không có hóa đơn nào</td></tr>`;
+          pagination.innerHTML = "";
+          return;
+        }
+
+        // Apply pagination
+        const totalPages = Math.ceil(filteredData.length / billsPerPage);
+        const startIndex = (currentBillPage - 1) * billsPerPage;
+        const pageData = filteredData.slice(startIndex, startIndex + billsPerPage);
+
+        let billTotal = 0;
+        // Total should be calculated for all filtered data to show the sum
+        filteredData.forEach(row => billTotal += row.total);
+
+        pageData.forEach((row) => {
 
               const payersJson = encodeURIComponent(JSON.stringify(row.payerDetails));
               const participantsJson = encodeURIComponent(JSON.stringify(row.participantDetails));
@@ -612,20 +659,41 @@
                         onclick="deleteExpense(${row.id})">
                       <i class="bi bi-trash3"></i>
                     </button>
+                    </button>
                   </td>
                 </tr>`;
-            });
+        });
 
-            // Dòng tổng cộng
-            tbody.innerHTML += `
-              <tr class="table-warning fw-bold" style="border-top: 3px solid #ffc107;">
-                <td colspan="3" class="text-start ps-3">
-                  <i class="bi bi-calculator me-1"></i>TỔNG: ${data.length} hóa đơn
-                </td>
-                <td class="amount-money text-danger">${formatMoney(billTotal)}</td>
-                <td colspan="2"></td>
-              </tr>`;
-          });
+        // Dòng tổng cộng (chỉ hiển thị ở trang cuối hoặc nếu muốn hiện luôn thì để đây)
+        tbody.innerHTML += `
+          <tr class="table-warning fw-bold" style="border-top: 3px solid #ffc107;">
+            <td colspan="3" class="text-start ps-3">
+              <i class="bi bi-calculator me-1"></i>TỔNG: ${filteredData.length} hóa đơn
+            </td>
+            <td class="amount-money text-danger">${formatMoney(billTotal)}</td>
+            <td colspan="2"></td>
+          </tr>`;
+          
+        renderBillPagination(totalPages);
+      }
+
+      function renderBillPagination(totalPages) {
+        const container = document.getElementById("billPagination");
+        if (totalPages <= 1) {
+            container.innerHTML = "";
+            return;
+        }
+        
+        let html = '';
+        html += `<button class="btn btn-sm btn-outline-secondary" ${currentBillPage === 1 ? 'disabled' : ''} onclick="changeBillPage(${currentBillPage - 1})">Trước</button>`;
+        html += `<span class="align-self-center mx-2 small text-muted">Trang ${currentBillPage} / ${totalPages}</span>`;
+        html += `<button class="btn btn-sm btn-outline-secondary" ${currentBillPage === totalPages ? 'disabled' : ''} onclick="changeBillPage(${currentBillPage + 1})">Sau</button>`;
+        container.innerHTML = html;
+      }
+
+      function changeBillPage(page) {
+        currentBillPage = page;
+        renderBills();
       }
 
       // 4. Đề Xuất Thanh Toán Nợ
@@ -678,50 +746,82 @@
         fetch(`/api/settlements?from=${from}&to=${to}`)
           .then((res) => res.json())
           .then((data) => {
-            const container = document.getElementById("settlementHistory");
-
-            if (data.length === 0) {
-              container.innerHTML = `
-                <div class="empty-state">
-                  <i class="bi bi-journal-check"></i>
-                  Chưa có thanh toán nào trong kỳ này
-                </div>`;
-              return;
-            }
-
-            let html = '';
-            data.forEach((s) => {
-              html += `
-                <div class="settlement-card d-flex align-items-center justify-content-between flex-wrap gap-2">
-                  <div>
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                      <span class="member-badge">
-                        <span style="color:${s.fromColor}; font-size:1.2em;">●</span>
-                        ${s.fromName}
-                      </span>
-                      <i class="bi bi-arrow-right-circle-fill text-success" style="font-size:1.2em;"></i>
-                      <span class="member-badge">
-                        <span style="color:${s.toColor}; font-size:1.2em;">●</span>
-                        ${s.toName}
-                      </span>
-                      <span class="badge bg-success fs-6">
-                        ${formatMoney(s.amount)} đ
-                      </span>
-                    </div>
-                    <small class="text-muted">
-                      <i class="bi bi-calendar3 me-1"></i>${s.date}
-                      ${s.createdAt ? ' <i class="bi bi-clock ms-2 me-1"></i>' + new Date(s.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : ''}
-                      ${s.note ? ' — ' + s.note : ''}
-                    </small>
-                  </div>
-                  <button class="btn btn-cancel-pay"
-                    onclick="cancelSettlement(${s.id})">
-                    <i class="bi bi-x-circle me-1"></i>Hủy
-                  </button>
-                </div>`;
-            });
-            container.innerHTML = html;
+            allSettlements = data;
+            currentSettlementPage = 1;
+            renderSettlements();
           });
+      }
+
+      function renderSettlements() {
+        const container = document.getElementById("settlementHistory");
+        const pagination = document.getElementById("settlementPagination");
+
+        if (allSettlements.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <i class="bi bi-journal-check"></i>
+              Chưa có thanh toán nào trong kỳ này
+            </div>`;
+          pagination.innerHTML = "";
+          return;
+        }
+
+        const totalPages = Math.ceil(allSettlements.length / settlementsPerPage);
+        const startIndex = (currentSettlementPage - 1) * settlementsPerPage;
+        const pageData = allSettlements.slice(startIndex, startIndex + settlementsPerPage);
+
+        let html = '';
+        pageData.forEach((s) => {
+          html += `
+            <div class="settlement-card d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <span class="member-badge">
+                    <span style="color:${s.fromColor}; font-size:1.2em;">●</span>
+                    ${s.fromName}
+                  </span>
+                  <i class="bi bi-arrow-right-circle-fill text-success" style="font-size:1.2em;"></i>
+                  <span class="member-badge">
+                    <span style="color:${s.toColor}; font-size:1.2em;">●</span>
+                    ${s.toName}
+                  </span>
+                  <span class="badge bg-success fs-6">
+                    ${formatMoney(s.amount)} đ
+                  </span>
+                </div>
+                <small class="text-muted">
+                  <i class="bi bi-calendar3 me-1"></i>${s.date}
+                  ${s.createdAt ? ' <i class="bi bi-clock ms-2 me-1"></i>' + new Date(s.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : ''}
+                  ${s.note ? ' — ' + s.note : ''}
+                </small>
+              </div>
+              <button class="btn btn-cancel-pay"
+                onclick="cancelSettlement(${s.id})">
+                <i class="bi bi-x-circle me-1"></i>Hủy
+              </button>
+            </div>`;
+        });
+        container.innerHTML = html;
+        renderSettlementPagination(totalPages);
+      }
+
+      function renderSettlementPagination(totalPages) {
+        const container = document.getElementById("settlementPagination");
+        if (totalPages <= 1) {
+            container.innerHTML = "";
+            return;
+        }
+        
+        let html = '';
+        html += `<button class="btn btn-sm btn-outline-secondary" ${currentSettlementPage === 1 ? 'disabled' : ''} onclick="changeSettlementPage(${currentSettlementPage - 1})">Trước</button>`;
+        html += `<span class="align-self-center mx-2 small text-muted">Trang ${currentSettlementPage} / ${totalPages}</span>`;
+        html += `<button class="btn btn-sm btn-outline-secondary" ${currentSettlementPage === totalPages ? 'disabled' : ''} onclick="changeSettlementPage(${currentSettlementPage + 1})">Sau</button>`;
+        container.innerHTML = html;
+      }
+
+      function changeSettlementPage(page) {
+        currentSettlementPage = page;
+        renderSettlements();
       }
 
       // === ACTIONS ===
