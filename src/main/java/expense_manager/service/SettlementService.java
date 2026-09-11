@@ -1,0 +1,185 @@
+package expense_manager.service;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import expense_manager.dto.DebtDto;
+import expense_manager.dto.MemberSummary;
+import expense_manager.dto.SettlementRequest;
+import expense_manager.entity.Member;
+import expense_manager.entity.Settlement;
+import expense_manager.repository.MemberRepository;
+import expense_manager.repository.SettlementRepository;
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class SettlementService {
+
+    private final SettlementRepository settlementRepository;
+    private final MemberRepository memberRepository;
+    private final SummaryService summaryService;
+
+    /**
+     * Tính toán ai nợ ai bao nhiêu, sử dụng thuật toán ghép nợ tối ưu (ít giao dịch nhất).
+     * 
+     * Thuật toán:
+     * 1. Lấy balance (số dư) của mỗi người từ SummaryService
+     * 2. Tách thành 2 nhóm: debtors (balance < 0, nợ) và creditors (balance > 0, dư)
+     * 3. Sắp xếp theo số tiền giảm dần
+     * 4. Ghép từng cặp debtor-creditor cho đến khi hết nợ
+     */
+    @Transactional(readOnly = true)
+    public List<DebtDto> calculateDebts(LocalDate from, LocalDate to) {
+        List<MemberSummary> summaries = summaryService.getSummary(from, to);
+        
+        // Trừ đi các khoản đã thanh toán trong kỳ
+        List<Settlement> existingSettlements = settlementRepository.findByPeriodFromAndPeriodTo(from, to);
+        Map<Long, BigDecimal> adjustments = new HashMap<>();
+        for (Settlement s : existingSettlements) {
+            // Người trả nợ (from) đã trả → balance tăng
+            adjustments.merge(s.getFromMember().getId(), s.getAmount(), BigDecimal::add);
+            // Người nhận (to) đã nhận → balance giảm
+            adjustments.merge(s.getToMember().getId(), s.getAmount().negate(), BigDecimal::add);
+        }
+        
+        // Áp dụng adjustments vào balance
+        Map<Long, MemberSummary> summaryMap = summaries.stream()
+                .collect(Collectors.toMap(MemberSummary::memberId, s -> s));
+        
+        // Tạo balance map đã điều chỉnh
+        List<BalanceEntry> balances = new ArrayList<>();
+        for (MemberSummary ms : summaries) {
+            BigDecimal adjusted = ms.balance().add(adjustments.getOrDefault(ms.memberId(), BigDecimal.ZERO));
+            if (adjusted.compareTo(BigDecimal.ZERO) != 0) {
+                balances.add(new BalanceEntry(ms.memberId(), ms.memberName(), ms.avatarColor(), adjusted));
+            }
+        }
+        
+        // Tách debtors (nợ, balance < 0) và creditors (dư, balance > 0)
+        List<BalanceEntry> debtors = balances.stream()
+                .filter(b -> b.balance.compareTo(BigDecimal.ZERO) < 0)
+                .sorted(Comparator.comparing(b -> b.balance)) // nợ nhiều nhất trước
+                .collect(Collectors.toList());
+        
+        List<BalanceEntry> creditors = balances.stream()
+                .filter(b -> b.balance.compareTo(BigDecimal.ZERO) > 0)
+                .sorted(Comparator.comparing(b -> ((BalanceEntry) b).balance).reversed()) // dư nhiều nhất trước
+                .collect(Collectors.toList());
+        
+        // Thuật toán ghép nợ tối ưu (greedy)
+        List<DebtDto> debts = new ArrayList<>();
+        int i = 0, j = 0;
+        while (i < debtors.size() && j < creditors.size()) {
+            BalanceEntry debtor = debtors.get(i);
+            BalanceEntry creditor = creditors.get(j);
+            
+            BigDecimal debtAmount = debtor.balance.abs();
+            BigDecimal creditAmount = creditor.balance;
+            BigDecimal transferAmount = debtAmount.min(creditAmount);
+            
+            // Làm tròn số tiền chuyển lên bội 1000đ (VD: 25100 → 26000)
+            BigDecimal roundedAmount = roundUpTo1000(transferAmount);
+            
+            debts.add(new DebtDto(
+                debtor.memberId, debtor.name, debtor.color,
+                creditor.memberId, creditor.name, creditor.color,
+                roundedAmount
+            ));
+            
+            // Cập nhật balance (dùng transferAmount gốc để tính toán chính xác)
+            debtor.balance = debtor.balance.add(transferAmount);
+            creditor.balance = creditor.balance.subtract(transferAmount);
+            
+            if (debtor.balance.compareTo(BigDecimal.ZERO) == 0) i++;
+            if (creditor.balance.compareTo(BigDecimal.ZERO) == 0) j++;
+        }
+        
+        return debts;
+    }
+
+    /**
+     * Làm tròn số tiền lên bội 1000đ.
+     * VD: 25100 → 26000, 25000 → 25000, 1100 → 2000
+     */
+    private BigDecimal roundUpTo1000(BigDecimal amount) {
+        BigDecimal thousand = BigDecimal.valueOf(1000);
+        BigDecimal[] divAndRemainder = amount.divideAndRemainder(thousand);
+        if (divAndRemainder[1].compareTo(BigDecimal.ZERO) > 0) {
+            return divAndRemainder[0].add(BigDecimal.ONE).multiply(thousand);
+        }
+        return amount;
+    }
+
+    /**
+     * Ghi nhận thanh toán (settlement).
+     */
+    @Transactional
+    public Settlement createSettlement(SettlementRequest request) {
+        Settlement settlement = new Settlement();
+        settlement.setFromMember(memberRepository.getReferenceById(request.fromMemberId()));
+        settlement.setToMember(memberRepository.getReferenceById(request.toMemberId()));
+        settlement.setAmount(request.amount());
+        settlement.setSettlementDate(LocalDate.now());
+        settlement.setNote(request.note());
+        settlement.setPeriodFrom(request.periodFrom());
+        settlement.setPeriodTo(request.periodTo());
+        return settlementRepository.save(settlement);
+    }
+
+    /**
+     * Lấy lịch sử thanh toán theo kỳ.
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getSettlementHistory(LocalDate periodFrom, LocalDate periodTo) {
+        List<Settlement> settlements = settlementRepository.findByPeriodFromAndPeriodTo(periodFrom, periodTo);
+        List<Map<String, Object>> result = new ArrayList<>();
+        
+        for (Settlement s : settlements) {
+            Map<String, Object> row = new HashMap<>();
+            row.put("id", s.getId());
+            row.put("fromName", s.getFromMember().getName());
+            row.put("fromColor", s.getFromMember().getAvatarColor());
+            row.put("toName", s.getToMember().getName());
+            row.put("toColor", s.getToMember().getAvatarColor());
+            row.put("amount", s.getAmount());
+            row.put("date", s.getSettlementDate());
+            row.put("note", s.getNote());
+            result.add(row);
+        }
+        
+        return result;
+    }
+
+    /**
+     * Hủy thanh toán.
+     */
+    @Transactional
+    public void deleteSettlement(Long id) {
+        settlementRepository.deleteById(id);
+    }
+
+    // Helper class mutable để ghép nợ
+    private static class BalanceEntry {
+        Long memberId;
+        String name;
+        String color;
+        BigDecimal balance;
+        
+        BalanceEntry(Long memberId, String name, String color, BigDecimal balance) {
+            this.memberId = memberId;
+            this.name = name;
+            this.color = color;
+            this.balance = balance;
+        }
+    }
+}

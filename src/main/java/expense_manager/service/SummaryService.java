@@ -124,6 +124,8 @@ public class SummaryService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getDetailedExpenses(LocalDate from, LocalDate to) {
         List<Expense> expenses = expenseRepository.findByExpenseDateBetween(from, to);
+        Map<Long, Member> memberCache = memberRepository.findAll().stream()
+                .collect(Collectors.toMap(Member::getId, m -> m));
         
         // Sắp xếp để hóa đơn mới nhất hiện lên trên cùng
         expenses.sort((a, b) -> b.getExpenseDate().compareTo(a.getExpenseDate()));
@@ -133,7 +135,7 @@ public class SummaryService {
             Map<String, Object> row = new HashMap<>();
             row.put("id", e.getId());
             row.put("date", e.getExpenseDate());
-            row.put("description", e.getDescription()); // Lấy nội dung bill (VD: Gà rán)
+            row.put("description", e.getDescription());
             row.put("total", e.getTotalAmount());
             
             // Chuyển loại chi tiêu sang tiếng Việt
@@ -155,6 +157,26 @@ public class SummaryService {
                 payersMap.put(payer.getMember().getName(), payer.getAmountPaid());
             });
             row.put("payerDetails", payersMap);
+            
+            // Lấy danh sách người tham gia từ participantMemberIds
+            List<String> participantsList = new ArrayList<>();
+            for (Long memberId : e.getParticipantMemberIds()) {
+                Member member = memberCache.get(memberId);
+                if (member != null) {
+                    participantsList.add(member.getName());
+                }
+            }
+            row.put("participantDetails", participantsList);
+            
+            // Tính số tiền mỗi người phải chịu
+            int participantCount = e.getParticipantMemberIds().size();
+            if (participantCount > 0) {
+                BigDecimal splitAmount = e.getTotalAmount()
+                        .divide(BigDecimal.valueOf(participantCount), 0, RoundingMode.HALF_UP);
+                row.put("splitPerPerson", splitAmount);
+            } else {
+                row.put("splitPerPerson", BigDecimal.ZERO);
+            }
             
             result.add(row);
         }

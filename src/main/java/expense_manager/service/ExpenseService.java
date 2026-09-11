@@ -44,4 +44,12 @@ public class ExpenseService {
 
         expenseRepository.save(expense);
     }
+
+    @Transactional
+    public void deleteExpense(Long id) {
+        if (!expenseRepository.existsById(id)) {
+            throw new IllegalArgumentException("Không tìm thấy hóa đơn với ID: " + id);
+        }
+        expenseRepository.deleteById(id);
+    }
 }
