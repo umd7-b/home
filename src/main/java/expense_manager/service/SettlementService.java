@@ -42,24 +42,10 @@ public class SettlementService {
     public List<DebtDto> calculateDebts(LocalDate from, LocalDate to) {
         List<MemberSummary> summaries = summaryService.getSummary(from, to);
         
-        // Trừ đi các khoản đã thanh toán trong kỳ
-        List<Settlement> existingSettlements = settlementRepository.findByPeriodFromAndPeriodTo(from, to);
-        Map<Long, BigDecimal> adjustments = new HashMap<>();
-        for (Settlement s : existingSettlements) {
-            // Người trả nợ (from) đã trả → balance tăng
-            adjustments.merge(s.getFromMember().getId(), s.getAmount(), BigDecimal::add);
-            // Người nhận (to) đã nhận → balance giảm
-            adjustments.merge(s.getToMember().getId(), s.getAmount().negate(), BigDecimal::add);
-        }
-        
-        // Áp dụng adjustments vào balance
-        Map<Long, MemberSummary> summaryMap = summaries.stream()
-                .collect(Collectors.toMap(MemberSummary::memberId, s -> s));
-        
-        // Tạo balance map đã điều chỉnh
+        // Tạo balance map đã điều chỉnh (đã bao gồm các giao dịch thanh toán)
         List<BalanceEntry> balances = new ArrayList<>();
         for (MemberSummary ms : summaries) {
-            BigDecimal adjusted = ms.balance().add(adjustments.getOrDefault(ms.memberId(), BigDecimal.ZERO));
+            BigDecimal adjusted = ms.finalBalance();
             if (adjusted.compareTo(BigDecimal.ZERO) != 0) {
                 balances.add(new BalanceEntry(ms.memberId(), ms.memberName(), ms.avatarColor(), adjusted));
             }

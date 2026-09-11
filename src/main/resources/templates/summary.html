@@ -246,7 +246,9 @@
                   <th class="text-start ps-4">Thành Viên</th>
                   <th>Tổng Đã Chi</th>
                   <th>Tổng Phải Chịu</th>
-                  <th>Số Dư</th>
+                  <th>Số Dư Gốc</th>
+                  <th>Đã Thanh Toán</th>
+                  <th>Còn Lại</th>
                 </tr>
               </thead>
               <tbody id="summaryTableBody">
@@ -455,14 +457,14 @@
 
             data.forEach((m) => {
               let badgeClass = "badge-zero";
-              let balanceText = formatMoney(m.balance);
+              let balanceText = formatMoney(m.finalBalance);
               let icon = "bi-dash-circle";
 
-              if (m.balance > 0) {
+              if (m.finalBalance > 0) {
                 badgeClass = "badge-positive";
                 balanceText = "+" + balanceText;
                 icon = "bi-arrow-up-circle-fill";
-              } else if (m.balance < 0) {
+              } else if (m.finalBalance < 0) {
                 badgeClass = "badge-negative";
                 icon = "bi-arrow-down-circle-fill";
               }
@@ -476,7 +478,9 @@
                     <span style="color: ${m.avatarColor}; font-size: 1.2em;">●</span> ${m.memberName}
                   </td>
                   <td class="amount-money text-primary">${formatMoney(m.totalPaid)}</td>
-                  <td class="amount-money">${formatMoney(m.totalOwed)}</td>
+                  <td class="amount-money text-danger">${formatMoney(m.totalOwed)}</td>
+                  <td class="amount-money">${formatMoney(m.originalBalance)}</td>
+                  <td class="amount-money text-secondary">${formatMoney(m.totalSettled)}</td>
                   <td>
                     <span class="${badgeClass}">
                       <i class="bi ${icon} me-1"></i>${balanceText}
@@ -490,8 +494,8 @@
               <tr class="table-warning fw-bold" style="border-top: 3px solid #ffc107;">
                 <td class="text-start ps-4"><i class="bi bi-calculator me-2"></i>TỔNG CỘNG</td>
                 <td class="amount-money text-primary">${formatMoney(grandTotalPaid)}</td>
-                <td class="amount-money">${formatMoney(grandTotalOwed)}</td>
-                <td>—</td>
+                <td class="amount-money text-danger">${formatMoney(grandTotalOwed)}</td>
+                <td colspan="3">—</td>
               </tr>`;
           });
       }

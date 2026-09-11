@@ -60,14 +60,30 @@ public class SummaryService {
             }
         }
 
+        // --- Tính các giao dịch thanh toán nợ (Settlements) ---
+        Map<Long, BigDecimal> settledMap = new HashMap<>();
+        List<Settlement> settlements = settlementRepository.findByPeriodFromAndPeriodTo(from, to);
+        for (Settlement s : settlements) {
+            Long fromId = s.getFromMember().getId();
+            Long toId = s.getToMember().getId();
+            BigDecimal amount = s.getAmount();
+            
+            // Người trả nợ (from) chuyển đi -> settled tăng
+            settledMap.put(fromId, settledMap.getOrDefault(fromId, BigDecimal.ZERO).add(amount));
+            // Người nhận nợ (to) nhận tiền -> settled giảm
+            settledMap.put(toId, settledMap.getOrDefault(toId, BigDecimal.ZERO).subtract(amount));
+        }
+
         return activeMembers.stream().map(m -> {
             BigDecimal totalPaid = paidMap.get(m.getId());
             BigDecimal totalOwed = owedMap.get(m.getId());
-            BigDecimal balance = totalPaid.subtract(totalOwed);
+            BigDecimal originalBalance = totalPaid.subtract(totalOwed);
+            BigDecimal totalSettled = settledMap.getOrDefault(m.getId(), BigDecimal.ZERO);
+            BigDecimal finalBalance = originalBalance.add(totalSettled);
             
             return new MemberSummary(
                     m.getId(), m.getName(), m.getAvatarColor(), 
-                    totalPaid, totalOwed, balance
+                    totalPaid, totalOwed, originalBalance, totalSettled, finalBalance
             );
         }).collect(Collectors.toList());
     }
