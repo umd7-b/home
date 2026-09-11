@@ -77,16 +77,12 @@ public class SettlementService {
             debtor.balance = debtor.balance.add(transferAmount);
             creditor.balance = creditor.balance.subtract(transferAmount);
             
-            // CHỈ đề xuất thanh toán nếu số tiền thực tế >= 1000đ
-            // (Điều này ngăn lỗi tạo hóa đơn ảo 1k do số dư < 1000 từ lần làm tròn trước)
-            if (transferAmount.compareTo(BigDecimal.valueOf(1000)) >= 0) {
-                // Làm tròn số tiền chuyển lên bội 1000đ (VD: 25100 → 26000)
-                BigDecimal roundedAmount = roundUpTo1000(transferAmount);
-                
+            // Đề xuất thanh toán đúng chính xác số tiền lẻ đến từng đồng để khớp hoàn toàn với bảng Còn Lại
+            if (transferAmount.compareTo(BigDecimal.ZERO) > 0) {
                 debts.add(new DebtDto(
                     debtor.memberId, debtor.name, debtor.color,
                     creditor.memberId, creditor.name, creditor.color,
-                    roundedAmount
+                    transferAmount
                 ));
             }
             
@@ -95,19 +91,6 @@ public class SettlementService {
         }
         
         return debts;
-    }
-
-    /**
-     * Làm tròn số tiền lên bội 1000đ.
-     * VD: 25100 → 26000, 25000 → 25000, 1100 → 2000
-     */
-    private BigDecimal roundUpTo1000(BigDecimal amount) {
-        BigDecimal thousand = BigDecimal.valueOf(1000);
-        BigDecimal[] divAndRemainder = amount.divideAndRemainder(thousand);
-        if (divAndRemainder[1].compareTo(BigDecimal.ZERO) > 0) {
-            return divAndRemainder[0].add(BigDecimal.ONE).multiply(thousand);
-        }
-        return amount;
     }
 
     /**
