@@ -3,11 +3,12 @@ FROM maven:3.9.6-eclipse-temurin-21 AS build
 WORKDIR /app
 COPY pom.xml .
 COPY src ./src
-RUN mvn clean package -DskipTests
+ENV MAVEN_OPTS="-Xmx256m"
+RUN mvn clean package -Dmaven.test.skip=true --no-transfer-progress
 
 # Bước 2: Chạy ứng dụng bằng môi trường Java JRE
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8081
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xmx300m", "-jar", "app.jar"]
