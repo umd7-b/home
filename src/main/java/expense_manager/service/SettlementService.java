@@ -143,6 +143,7 @@ public class SettlementService {
             row.put("toColor", s.getToMember().getAvatarColor());
             row.put("amount", s.getAmount());
             row.put("date", s.getSettlementDate());
+            row.put("createdAt", s.getCreatedAt());
             row.put("note", s.getNote());
             result.add(row);
         }

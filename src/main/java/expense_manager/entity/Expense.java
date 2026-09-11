@@ -40,6 +40,16 @@ public class Expense {
     @Column(name = "member_id")
     private List<Long> participantMemberIds = new ArrayList<>();
 
+    @Column(name = "created_at", updatable = false)
+    private java.time.LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = java.time.LocalDateTime.now();
+        }
+    }
+
     public void addPayer(ExpensePayer payer) {
         payers.add(payer);
         payer.setExpense(this);

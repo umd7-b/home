@@ -588,13 +588,20 @@
                 default: typeBadge = `<span class="badge bg-secondary">${row.type}</span>`;
               }
 
+              let timeHtml = '';
+              if (row.createdAt) {
+                const dateObj = new Date(row.createdAt);
+                const timeStr = dateObj.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
+                timeHtml = `<br><small class="text-muted"><i class="bi bi-clock me-1"></i>${timeStr}</small>`;
+              }
+
               tbody.innerHTML += `
                 <tr>
-                  <td class="fw-bold">${row.date}</td>
-                  <td>${typeBadge}</td>
-                  <td class="text-start">${row.description || ''}</td>
-                  <td class="amount-money text-danger">${formatMoney(row.total)}</td>
-                  <td>
+                  <td class="fw-bold align-middle">${row.date}${timeHtml}</td>
+                  <td class="align-middle">${typeBadge}</td>
+                  <td class="text-start align-middle">${row.description || ''}</td>
+                  <td class="amount-money text-danger align-middle">${formatMoney(row.total)}</td>
+                  <td class="align-middle">
                     <button type="button" class="btn btn-sm btn-outline-primary rounded-pill"
                         onclick="showBillDetails('${payersJson}', '${participantsJson}', '${safeDesc}', ${splitPerPerson})">
                       <i class="bi bi-eye me-1"></i>Xem
@@ -703,6 +710,7 @@
                     </div>
                     <small class="text-muted">
                       <i class="bi bi-calendar3 me-1"></i>${s.date}
+                      ${s.createdAt ? ' <i class="bi bi-clock ms-2 me-1"></i>' + new Date(s.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : ''}
                       ${s.note ? ' — ' + s.note : ''}
                     </small>
                   </div>

@@ -154,6 +154,7 @@ public class SummaryService {
             Map<String, Object> row = new HashMap<>();
             row.put("id", e.getId());
             row.put("date", e.getExpenseDate());
+            row.put("createdAt", e.getCreatedAt());
             row.put("description", e.getDescription());
             row.put("total", e.getTotalAmount());
             
