@@ -54,9 +54,9 @@ public class SummaryService {
 
             int participantCount = expense.getParticipantMemberIds().size();
             if (participantCount > 0) {
-                // Không làm tròn từng hóa đơn để tránh sai số cộng dồn
+                // Làm tròn lên số nguyên (0 chữ số thập phân) để bỏ phần lẻ sau dấu phẩy
                 BigDecimal splitAmount = expense.getTotalAmount()
-                        .divide(BigDecimal.valueOf(participantCount), 2, RoundingMode.HALF_UP);
+                        .divide(BigDecimal.valueOf(participantCount), 0, RoundingMode.UP);
 
                 expense.getParticipantMemberIds().forEach(pId -> {
                     owedMap.put(pId, owedMap.getOrDefault(pId, BigDecimal.ZERO).add(splitAmount));
@@ -189,11 +189,11 @@ public class SummaryService {
             }
             row.put("participantDetails", participantsList);
             
-            // Tính số tiền mỗi người phải chịu (chia chính xác 2 chữ số thập phân)
+            // Tính số tiền mỗi người phải chịu (làm tròn lên số nguyên)
             int participantCount = e.getParticipantMemberIds().size();
             if (participantCount > 0) {
                 BigDecimal splitAmount = e.getTotalAmount()
-                        .divide(BigDecimal.valueOf(participantCount), 2, RoundingMode.HALF_UP);
+                        .divide(BigDecimal.valueOf(participantCount), 0, RoundingMode.UP);
                 row.put("splitPerPerson", splitAmount);
             } else {
                 row.put("splitPerPerson", BigDecimal.ZERO);
