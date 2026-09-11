@@ -18,8 +18,10 @@ import expense_manager.dto.MemberSummary;
 import expense_manager.entity.Expense;
 import expense_manager.entity.ExpenseType;
 import expense_manager.entity.Member;
+import expense_manager.entity.Settlement;
 import expense_manager.repository.ExpenseRepository;
 import expense_manager.repository.MemberRepository;
+import expense_manager.repository.SettlementRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -27,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 public class SummaryService {
     private final ExpenseRepository expenseRepository;
     private final MemberRepository memberRepository;
+    private final SettlementRepository settlementRepository;
 
     @Transactional(readOnly = true)
     public List<MemberSummary> getSummary(LocalDate from, LocalDate to) {
