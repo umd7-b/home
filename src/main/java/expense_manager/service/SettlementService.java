@@ -87,18 +87,22 @@ public class SettlementService {
             BigDecimal creditAmount = creditor.balance;
             BigDecimal transferAmount = debtAmount.min(creditAmount);
             
-            // Làm tròn số tiền chuyển lên bội 1000đ (VD: 25100 → 26000)
-            BigDecimal roundedAmount = roundUpTo1000(transferAmount);
-            
-            debts.add(new DebtDto(
-                debtor.memberId, debtor.name, debtor.color,
-                creditor.memberId, creditor.name, creditor.color,
-                roundedAmount
-            ));
-            
-            // Cập nhật balance (dùng transferAmount gốc để tính toán chính xác)
+            // Cập nhật balance ngay lập tức để tiếp tục vòng lặp
             debtor.balance = debtor.balance.add(transferAmount);
             creditor.balance = creditor.balance.subtract(transferAmount);
+            
+            // CHỈ đề xuất thanh toán nếu số tiền thực tế >= 1000đ
+            // (Điều này ngăn lỗi tạo hóa đơn ảo 1k do số dư < 1000 từ lần làm tròn trước)
+            if (transferAmount.compareTo(BigDecimal.valueOf(1000)) >= 0) {
+                // Làm tròn số tiền chuyển lên bội 1000đ (VD: 25100 → 26000)
+                BigDecimal roundedAmount = roundUpTo1000(transferAmount);
+                
+                debts.add(new DebtDto(
+                    debtor.memberId, debtor.name, debtor.color,
+                    creditor.memberId, creditor.name, creditor.color,
+                    roundedAmount
+                ));
+            }
             
             if (debtor.balance.compareTo(BigDecimal.ZERO) == 0) i++;
             if (creditor.balance.compareTo(BigDecimal.ZERO) == 0) j++;
