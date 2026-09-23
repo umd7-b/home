@@ -328,12 +328,23 @@
       <!-- Chi Tiết Từng Hóa Đơn -->
       <div class="card shadow-sm mb-4 animate-in">
         <div class="card-header-bill d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <h5 class="mb-0">
+          <h5 class="mb-0 fw-bold">
             <i class="bi bi-receipt-cutoff me-2"></i>Chi Tiết Từng Hóa Đơn
           </h5>
-          <div class="d-flex align-items-center gap-2" style="max-width: 200px;">
-            <label for="billFilterDate" class="text-white small mb-0 fw-bold text-nowrap">Lọc ngày:</label>
-            <input type="date" id="billFilterDate" class="form-control form-control-sm" onchange="filterBillsByDate()">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="d-flex align-items-center gap-1">
+              <label for="billFilterPayer" class="text-dark small mb-0 fw-bold text-nowrap">Người trả:</label>
+              <select id="billFilterPayer" class="form-select form-select-sm rounded-pill" style="min-width: 140px;" onchange="filterBills()">
+                <option value="">Tất cả người trả</option>
+              </select>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+              <label for="billFilterDate" class="text-dark small mb-0 fw-bold text-nowrap">Ngày:</label>
+              <input type="date" id="billFilterDate" class="form-control form-control-sm rounded-pill" onchange="filterBills()">
+            </div>
+            <button type="button" class="btn btn-sm btn-light rounded-pill py-1 px-3 fw-semibold shadow-sm" onclick="resetBillFilters()" title="Xóa bộ lọc">
+              <i class="bi bi-arrow-counterclockwise me-1"></i>Đặt lại
+            </button>
           </div>
         </div>
         <div class="card-body p-0">
@@ -344,6 +355,7 @@
                   <th>Ngày</th>
                   <th>Loại</th>
                   <th>Nội Dung</th>
+                  <th>Người Trả</th>
                   <th>Tổng Tiền</th>
                   <th>Chi Tiết</th>
                   <th>Hành Động</th>
@@ -390,25 +402,81 @@
       </div>
     </div>
 
-    <!-- Modal Thanh Toán QR -->
+    <!-- Modal Thanh Toán QR (Hỗ trợ chia nhỏ / thanh toán một phần) -->
     <div class="modal fade" id="qrPaymentModal" tabindex="-1">
-      <div class="modal-dialog modal-sm modal-dialog-centered">
-        <div class="modal-content">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg">
           <div class="modal-header bg-warning text-dark">
             <h5 class="modal-title fw-bold">
-              <i class="bi bi-qr-code-scan me-2"></i>Thanh Toán
+              <i class="bi bi-qr-code-scan me-2"></i>Thanh Toán Nợ
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
-          <div class="modal-body text-center">
-            <h6 class="fw-bold mb-1" id="qrPaymentTarget">Đang chuyển cho: ...</h6>
-            <h4 class="text-danger fw-bold mb-3" id="qrPaymentAmount">0 đ</h4>
-            <div class="qr-container mb-3" style="border: 2px dashed #ccc; padding: 10px; border-radius: 10px; background: #f8f9fa;">
-              <img id="qrPaymentImage" src="" alt="QR Code" style="width: 100%; max-width: 200px; border-radius: 8px;">
+          <div class="modal-body text-center p-4">
+            <!-- Thông tin người trả và người nhận -->
+            <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded-4 text-start border shadow-sm">
+              <div>
+                <small class="text-muted d-block fw-semibold">Người trả nợ</small>
+                <strong id="qrPaymentFrom" class="fs-6 text-primary">...</strong>
+              </div>
+              <div class="text-center px-2">
+                <i class="bi bi-arrow-right-circle-fill text-warning fs-3"></i>
+              </div>
+              <div class="text-end">
+                <small class="text-muted d-block fw-semibold">Người nhận</small>
+                <strong id="qrPaymentTarget" class="fs-6 text-success">...</strong>
+              </div>
             </div>
-            <p class="text-muted small mb-3">Quét mã QR bằng ứng dụng ngân hàng để thanh toán chính xác số tiền.</p>
-            <button id="btnConfirmQrSettlement" class="btn btn-success w-100 fw-bold rounded-pill">
-              <i class="bi bi-check-circle-fill me-1"></i>Đã Chuyển Khoản Xong
+
+            <!-- Tổng số nợ hiện tại -->
+            <div class="alert alert-warning py-2 px-3 mb-3 d-flex justify-content-between align-items-center rounded-3">
+              <span class="small fw-bold"><i class="bi bi-wallet2 me-1"></i>Tổng nợ hiện tại:</span>
+              <strong id="qrTotalDebtText" class="text-danger fs-6">0 đ</strong>
+            </div>
+
+            <!-- Ô nhập số tiền thanh toán (cho phép chia nhỏ) -->
+            <div class="mb-3 text-start">
+              <label for="qrPaymentAmountInput" class="form-label fw-bold mb-1 d-flex justify-content-between align-items-center">
+                <span>Số tiền thanh toán:</span>
+                <span id="qrFormattedAmountPreview" class="text-danger fw-bold fs-6">0 đ</span>
+              </label>
+              <div class="input-group input-group-lg shadow-sm">
+                <input type="number" id="qrPaymentAmountInput" class="form-control fw-bold text-center text-danger" 
+                       min="1000" step="1000" placeholder="Nhập số tiền..." oninput="onPaymentAmountChange()">
+                <span class="input-group-text fw-bold bg-light">VNĐ</span>
+              </div>
+              <!-- Các nút bấm nhanh -->
+              <div class="d-flex gap-2 mt-2">
+                <button type="button" class="btn btn-sm btn-outline-primary flex-fill rounded-pill py-1 fw-semibold" onclick="setPaymentAmountFull()">
+                  <i class="bi bi-check-all me-1"></i>Trả hết
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary flex-fill rounded-pill py-1 fw-semibold" onclick="setPaymentAmountPercent(0.5)">
+                  50%
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary flex-fill rounded-pill py-1 fw-semibold" onclick="setPaymentAmountPercent(0.25)">
+                  25%
+                </button>
+              </div>
+              <!-- Dự tính nợ còn lại -->
+              <div id="qrRemainingDebtNotice" class="small mt-2 p-2 rounded-3 bg-light text-center border">
+                Nợ còn lại sau thanh toán: <strong id="qrRemainingDebtText" class="text-danger">0 đ</strong>
+              </div>
+            </div>
+
+            <!-- Ghi chú thanh toán tùy chọn -->
+            <div class="mb-3 text-start">
+              <label for="qrPaymentNote" class="form-label small fw-semibold text-muted mb-1">Ghi chú (tùy chọn):</label>
+              <input type="text" id="qrPaymentNote" class="form-control rounded-pill" placeholder="Ví dụ: Trả trước 500k...">
+            </div>
+
+            <!-- Mã QR Code của người nhận -->
+            <div class="qr-container mb-3" style="border: 2px dashed #ffc107; padding: 12px; border-radius: 14px; background: #fff;">
+              <img id="qrPaymentImage" src="" alt="QR Code" style="width: 100%; max-width: 200px; border-radius: 10px;">
+            </div>
+            <p class="text-muted small mb-3">Quét mã QR bằng app ngân hàng và chuyển đúng số tiền bạn đã nhập.</p>
+
+            <button id="btnConfirmQrSettlement" class="btn btn-success w-100 fw-bold rounded-pill py-2 shadow">
+              <i class="bi bi-check-circle-fill me-1"></i>Xác Nhận Đã Thanh Toán
             </button>
           </div>
         </div>
@@ -561,6 +629,41 @@
           });
       }
 
+      // Format giờ Việt Nam từ chuỗi thời gian của server (tránh lệch timezone trình duyệt)
+      function formatTimeVN(timeValue) {
+        if (!timeValue) return '';
+        if (typeof timeValue === 'string') {
+          const parts = timeValue.split(/[T ]/);
+          if (parts.length > 1) {
+            const timeParts = parts[1].split(':');
+            if (timeParts.length >= 2) {
+              return `${timeParts[0]}:${timeParts[1]}`;
+            }
+          }
+        }
+        const d = new Date(timeValue);
+        return !isNaN(d) ? d.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : '';
+      }
+
+      // Danh sách thành viên phục vụ bộ lọc người trả
+      let membersList = [];
+      function loadMembersForFilter() {
+        fetch("/api/members")
+          .then((res) => res.json())
+          .then((data) => {
+            membersList = data;
+            const select = document.getElementById("billFilterPayer");
+            if (!select) return;
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">Tất cả người trả</option>';
+            membersList.forEach((m) => {
+              select.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+            });
+            if (currentVal) select.value = currentVal;
+          })
+          .catch((err) => console.error("Lỗi tải danh sách thành viên:", err));
+      }
+
       // State for pagination
       let allBills = [];
       let currentBillPage = 1;
@@ -576,13 +679,21 @@
           .then((res) => res.json())
           .then((data) => {
             allBills = data;
-            document.getElementById("billFilterDate").value = ''; // Reset filter
             currentBillPage = 1;
             renderBills();
           });
       }
 
-      function filterBillsByDate() {
+      function filterBills() {
+        currentBillPage = 1;
+        renderBills();
+      }
+
+      function resetBillFilters() {
+        const payerSelect = document.getElementById("billFilterPayer");
+        const dateInput = document.getElementById("billFilterDate");
+        if (payerSelect) payerSelect.value = '';
+        if (dateInput) dateInput.value = '';
         currentBillPage = 1;
         renderBills();
       }
@@ -590,19 +701,32 @@
       function renderBills() {
         const tbody = document.getElementById("billHistoryBody");
         const pagination = document.getElementById("billPagination");
-        const filterDate = document.getElementById("billFilterDate").value;
+        const filterDate = document.getElementById("billFilterDate") ? document.getElementById("billFilterDate").value : '';
+        const filterPayerId = document.getElementById("billFilterPayer") ? document.getElementById("billFilterPayer").value : '';
 
-        // Apply filter
+        // Lọc theo ngày và/hoặc người trả
         let filteredData = allBills;
         if (filterDate) {
-            filteredData = allBills.filter(row => row.date === filterDate);
+          filteredData = filteredData.filter(row => row.date === filterDate);
+        }
+        if (filterPayerId) {
+          const pId = Number(filterPayerId);
+          filteredData = filteredData.filter(row => {
+            if (row.payerMemberIds && Array.isArray(row.payerMemberIds)) {
+              return row.payerMemberIds.includes(pId);
+            }
+            if (row.payerList && Array.isArray(row.payerList)) {
+              return row.payerList.some(p => p.memberId === pId);
+            }
+            return false;
+          });
         }
 
         tbody.innerHTML = "";
         
         if (filteredData.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" class="empty-state">
-            <i class="bi bi-receipt"></i>Không có hóa đơn nào</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" class="empty-state">
+            <i class="bi bi-receipt"></i>Không có hóa đơn nào phù hợp bộ lọc</td></tr>`;
           pagination.innerHTML = "";
           return;
         }
@@ -613,61 +737,76 @@
         const pageData = filteredData.slice(startIndex, startIndex + billsPerPage);
 
         let billTotal = 0;
-        // Total should be calculated for all filtered data to show the sum
         filteredData.forEach(row => billTotal += row.total);
 
         pageData.forEach((row) => {
+          const payersJson = encodeURIComponent(JSON.stringify(row.payerDetails));
+          const participantsJson = encodeURIComponent(JSON.stringify(row.participantDetails));
+          const splitPerPerson = row.splitPerPerson || 0;
 
-              const payersJson = encodeURIComponent(JSON.stringify(row.payerDetails));
-              const participantsJson = encodeURIComponent(JSON.stringify(row.participantDetails));
-              const splitPerPerson = row.splitPerPerson || 0;
+          // Escape description cho onclick (tránh lỗi nếu có ký tự đặc biệt)
+          const safeDesc = (row.description || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-              // Escape description cho onclick (tránh lỗi nếu có ký tự đặc biệt)
-              const safeDesc = (row.description || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+          // Badge loại chi tiêu có màu
+          let typeBadge = '';
+          switch(row.type) {
+            case 'Sáng': typeBadge = '<span class="badge" style="background:#ff9800">🌅 Sáng</span>'; break;
+            case 'Trưa': typeBadge = '<span class="badge" style="background:#2196f3">☀️ Trưa</span>'; break;
+            case 'Tối': typeBadge = '<span class="badge" style="background:#673ab7">🌙 Tối</span>'; break;
+            case 'Đồ Chung': typeBadge = '<span class="badge" style="background:#4caf50">🏠 Đồ Chung</span>'; break;
+            default: typeBadge = `<span class="badge bg-secondary">${row.type}</span>`;
+          }
 
-              // Badge loại chi tiêu có màu
-              let typeBadge = '';
-              switch(row.type) {
-                case 'Sáng': typeBadge = '<span class="badge" style="background:#ff9800">🌅 Sáng</span>'; break;
-                case 'Trưa': typeBadge = '<span class="badge" style="background:#2196f3">☀️ Trưa</span>'; break;
-                case 'Tối': typeBadge = '<span class="badge" style="background:#673ab7">🌙 Tối</span>'; break;
-                case 'Đồ Chung': typeBadge = '<span class="badge" style="background:#4caf50">🏠 Đồ Chung</span>'; break;
-                default: typeBadge = `<span class="badge bg-secondary">${row.type}</span>`;
-              }
+          let timeHtml = '';
+          if (row.createdAt) {
+            const timeStr = formatTimeVN(row.createdAt);
+            if (timeStr) {
+              timeHtml = `<br><small class="text-muted"><i class="bi bi-clock me-1"></i>${timeStr}</small>`;
+            }
+          }
 
-              let timeHtml = '';
-              if (row.createdAt) {
-                const dateObj = new Date(row.createdAt);
-                const timeStr = dateObj.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
-                timeHtml = `<br><small class="text-muted"><i class="bi bi-clock me-1"></i>${timeStr}</small>`;
-              }
+          // Render cột Người Trả
+          let payerColumnHtml = '';
+          if (row.payerList && row.payerList.length > 0) {
+            payerColumnHtml = row.payerList.map(p => {
+              const dotColor = p.color || '#6c757d';
+              return `<div class="d-inline-flex align-items-center gap-1 my-1 px-2 py-1 rounded-pill bg-light border text-nowrap small shadow-sm">
+                <span style="color: ${dotColor}; font-size: 1.1em;">●</span>
+                <strong>${p.name}</strong>: <span class="text-danger fw-semibold">${formatMoney(p.amount)} đ</span>
+              </div>`;
+            }).join(' ');
+          } else if (row.payers) {
+            payerColumnHtml = `<span class="badge bg-light text-dark border">${row.payers}</span>`;
+          } else {
+            payerColumnHtml = '<span class="text-muted">—</span>';
+          }
 
-              tbody.innerHTML += `
-                <tr>
-                  <td class="fw-bold align-middle">${row.date}${timeHtml}</td>
-                  <td class="align-middle">${typeBadge}</td>
-                  <td class="text-start align-middle">${row.description || ''}</td>
-                  <td class="amount-money text-danger align-middle">${formatMoney(row.total)}</td>
-                  <td class="align-middle">
-                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill"
-                        onclick="showBillDetails('${payersJson}', '${participantsJson}', '${safeDesc}', ${splitPerPerson})">
-                      <i class="bi bi-eye me-1"></i>Xem
-                    </button>
-                  </td>
-                  <td>
-                    <button type="button" class="btn btn-sm btn-outline-danger btn-delete-bill"
-                        onclick="deleteExpense(${row.id})">
-                      <i class="bi bi-trash3"></i>
-                    </button>
-                    </button>
-                  </td>
-                </tr>`;
+          tbody.innerHTML += `
+            <tr>
+              <td class="fw-bold align-middle">${row.date}${timeHtml}</td>
+              <td class="align-middle">${typeBadge}</td>
+              <td class="text-start align-middle">${row.description || ''}</td>
+              <td class="align-middle">${payerColumnHtml}</td>
+              <td class="amount-money text-danger align-middle">${formatMoney(row.total)}</td>
+              <td class="align-middle">
+                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill"
+                    onclick="showBillDetails('${payersJson}', '${participantsJson}', '${safeDesc}', ${splitPerPerson})">
+                  <i class="bi bi-eye me-1"></i>Xem
+                </button>
+              </td>
+              <td class="align-middle">
+                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-bill"
+                    onclick="deleteExpense(${row.id})">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </td>
+            </tr>`;
         });
 
-        // Dòng tổng cộng (chỉ hiển thị ở trang cuối hoặc nếu muốn hiện luôn thì để đây)
+        // Dòng tổng cộng
         tbody.innerHTML += `
           <tr class="table-warning fw-bold" style="border-top: 3px solid #ffc107;">
-            <td colspan="3" class="text-start ps-3">
+            <td colspan="4" class="text-start ps-3">
               <i class="bi bi-calculator me-1"></i>TỔNG: ${filteredData.length} hóa đơn
             </td>
             <td class="amount-money text-danger">${formatMoney(billTotal)}</td>
@@ -791,7 +930,7 @@
                 </div>
                 <small class="text-muted">
                   <i class="bi bi-calendar3 me-1"></i>${s.date}
-                  ${s.createdAt ? ' <i class="bi bi-clock ms-2 me-1"></i>' + new Date(s.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : ''}
+                  ${timeStr ? ' <i class="bi bi-clock ms-2 me-1"></i>' + timeStr : ''}
                   ${s.note ? ' — ' + s.note : ''}
                 </small>
               </div>
@@ -824,26 +963,36 @@
         renderSettlements();
       }
 
-      // === ACTIONS ===
+      // === ACTIONS: THANH TOÁN (HỖ TRỢ CHIA NHỎ TIỀN NỢ) ===
 
-      // Mở modal QR
-      function openQrModal(fromId, fromName, toId, toName, amount, periodFrom, periodTo) {
-        // Cập nhật text
-        document.getElementById("qrPaymentTarget").innerText = `Đang chuyển cho: ${toName}`;
-        document.getElementById("qrPaymentAmount").innerText = formatMoney(amount) + ' đ';
+      let currentSettlementContext = null;
+
+      // Mở modal thanh toán (cho phép chia nhỏ số tiền)
+      function openQrModal(fromId, fromName, toId, toName, totalDebt, periodFrom, periodTo) {
+        currentSettlementContext = {
+          fromId, fromName, toId, toName, totalDebt, periodFrom, periodTo
+        };
+
+        document.getElementById("qrPaymentFrom").innerText = fromName;
+        document.getElementById("qrPaymentTarget").innerText = toName;
+        document.getElementById("qrTotalDebtText").innerText = formatMoney(totalDebt) + ' đ';
+
+        const amountInput = document.getElementById("qrPaymentAmountInput");
+        amountInput.value = totalDebt;
+        amountInput.max = totalDebt;
+
+        document.getElementById("qrPaymentNote").value = '';
+
+        updatePaymentModalDisplay(totalDebt);
 
         // Set ảnh QR dựa trên tên (tên không dấu, chữ thường)
-        // Ví dụ: Tu -> tu.png, Quang -> quang.png
-        // Bỏ dấu tiếng việt nếu có và chuyển thành chữ thường
         const normalizedName = toName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         document.getElementById("qrPaymentImage").src = `/qr/${normalizedName}.png`;
 
         // Gán sự kiện cho nút Xác nhận bên trong modal
         const confirmBtn = document.getElementById("btnConfirmQrSettlement");
         confirmBtn.onclick = function() {
-          const myModal = bootstrap.Modal.getInstance(document.getElementById('qrPaymentModal'));
-          if(myModal) myModal.hide();
-          confirmSettlement(fromId, toId, amount, periodFrom, periodTo);
+          submitSettlementPayment();
         };
 
         // Hiển thị modal
@@ -851,9 +1000,77 @@
         qrModal.show();
       }
 
-      // Xác nhận thanh toán (Gọi API sau khi tắt modal QR)
-      function confirmSettlement(fromId, toId, amount, periodFrom, periodTo) {
-        if (!confirm(`Xác nhận thanh toán ${formatMoney(amount)} đ?`)) return;
+      function onPaymentAmountChange() {
+        const input = document.getElementById("qrPaymentAmountInput");
+        let val = parseFloat(input.value) || 0;
+        updatePaymentModalDisplay(val);
+      }
+
+      function setPaymentAmountFull() {
+        if (!currentSettlementContext) return;
+        const input = document.getElementById("qrPaymentAmountInput");
+        input.value = currentSettlementContext.totalDebt;
+        updatePaymentModalDisplay(currentSettlementContext.totalDebt);
+      }
+
+      function setPaymentAmountPercent(percent) {
+        if (!currentSettlementContext) return;
+        const target = Math.round(currentSettlementContext.totalDebt * percent);
+        const input = document.getElementById("qrPaymentAmountInput");
+        input.value = target;
+        updatePaymentModalDisplay(target);
+      }
+
+      function updatePaymentModalDisplay(amount) {
+        if (!currentSettlementContext) return;
+        const preview = document.getElementById("qrFormattedAmountPreview");
+        const remainText = document.getElementById("qrRemainingDebtText");
+        const confirmBtn = document.getElementById("btnConfirmQrSettlement");
+
+        preview.innerText = formatMoney(amount) + ' đ';
+
+        const remaining = currentSettlementContext.totalDebt - amount;
+        if (remaining > 0) {
+          remainText.innerText = formatMoney(remaining) + ' đ';
+          remainText.className = "text-danger fw-bold";
+        } else if (remaining === 0) {
+          remainText.innerText = "0 đ (Hết nợ)";
+          remainText.className = "text-success fw-bold";
+        } else {
+          remainText.innerText = `Thừa ${formatMoney(Math.abs(remaining))} đ`;
+          remainText.className = "text-warning fw-bold";
+        }
+
+        if (amount <= 0) {
+          confirmBtn.disabled = true;
+        } else {
+          confirmBtn.disabled = false;
+        }
+      }
+
+      // Gửi thanh toán lên server
+      function submitSettlementPayment() {
+        if (!currentSettlementContext) return;
+        const input = document.getElementById("qrPaymentAmountInput");
+        const amount = parseFloat(input.value);
+
+        if (!amount || amount <= 0) {
+          alert("Vui lòng nhập số tiền thanh toán hợp lệ (> 0 VNĐ)!");
+          return;
+        }
+
+        const note = document.getElementById("qrPaymentNote").value.trim();
+        const { fromId, fromName, toId, toName, periodFrom, periodTo, totalDebt } = currentSettlementContext;
+
+        let confirmMsg = `Xác nhận ghi nhận ${fromName} đã trả ${formatMoney(amount)} đ cho ${toName}?`;
+        if (amount < totalDebt) {
+          confirmMsg += `\n(Thanh toán một phần, nợ còn lại: ${formatMoney(totalDebt - amount)} đ)`;
+        }
+
+        if (!confirm(confirmMsg)) return;
+
+        const myModal = bootstrap.Modal.getInstance(document.getElementById('qrPaymentModal'));
+        if (myModal) myModal.hide();
 
         fetch('/api/settlements', {
           method: 'POST',
@@ -862,13 +1079,13 @@
             fromMemberId: fromId,
             toMemberId: toId,
             amount: amount,
-            note: '',
+            note: note,
             periodFrom: periodFrom,
             periodTo: periodTo
           })
         }).then(async (res) => {
           if (res.ok) {
-            alert('✅ Ghi nhận thanh toán thành công!');
+            alert(`✅ Đã ghi nhận thanh toán ${formatMoney(amount)} đ thành công!`);
             document.getElementById("filterForm").dispatchEvent(new Event("submit"));
           } else {
             alert('❌ Lỗi: ' + (await res.text()));
@@ -970,7 +1187,8 @@
         new bootstrap.Modal(document.getElementById("payerDetailsModal")).show();
       }
 
-      // Tự động load dữ liệu ngay khi vào trang
+      // Tự động load danh sách người cho bộ lọc và load dữ liệu tổng kết ngay khi vào trang
+      loadMembersForFilter();
       document.getElementById("filterForm").dispatchEvent(new Event("submit"));
     </script>
   </body>

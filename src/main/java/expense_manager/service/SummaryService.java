@@ -147,8 +147,15 @@ public class SummaryService {
         Map<Long, Member> memberCache = memberRepository.findAll().stream()
                 .collect(Collectors.toMap(Member::getId, m -> m));
         
-        // Sắp xếp để hóa đơn mới nhất hiện lên trên cùng
-        expenses.sort((a, b) -> b.getExpenseDate().compareTo(a.getExpenseDate()));
+        // Sắp xếp để hóa đơn mới nhất hiện lên trên cùng (ưu tiên ngày, nếu cùng ngày thì ưu tiên createdAt/id)
+        expenses.sort((a, b) -> {
+            int cmp = b.getExpenseDate().compareTo(a.getExpenseDate());
+            if (cmp != 0) return cmp;
+            if (b.getCreatedAt() != null && a.getCreatedAt() != null) {
+                return b.getCreatedAt().compareTo(a.getCreatedAt());
+            }
+            return Long.compare(b.getId() != null ? b.getId() : 0, a.getId() != null ? a.getId() : 0);
+        });
 
         List<Map<String, Object>> result = new ArrayList<>();
         for (Expense e : expenses) {
@@ -174,10 +181,30 @@ public class SummaryService {
             
             // Lấy chính xác ai trả bao nhiêu cho riêng bill này
             Map<String, BigDecimal> payersMap = new HashMap<>();
+            List<Map<String, Object>> payerList = new ArrayList<>();
+            List<String> payerNames = new ArrayList<>();
+            List<Long> payerMemberIds = new ArrayList<>();
+
             e.getPayers().forEach(payer -> {
-                payersMap.put(payer.getMember().getName(), payer.getAmountPaid());
+                String pName = payer.getMember().getName();
+                BigDecimal amt = payer.getAmountPaid();
+                payersMap.put(pName, amt);
+                payerNames.add(pName);
+                if (payer.getMember().getId() != null) {
+                    payerMemberIds.add(payer.getMember().getId());
+                }
+
+                Map<String, Object> pInfo = new HashMap<>();
+                pInfo.put("memberId", payer.getMember().getId());
+                pInfo.put("name", pName);
+                pInfo.put("color", payer.getMember().getAvatarColor());
+                pInfo.put("amount", amt);
+                payerList.add(pInfo);
             });
             row.put("payerDetails", payersMap);
+            row.put("payerList", payerList);
+            row.put("payers", String.join(", ", payerNames));
+            row.put("payerMemberIds", payerMemberIds);
             
             // Lấy danh sách người tham gia từ participantMemberIds
             List<String> participantsList = new ArrayList<>();

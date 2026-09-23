@@ -9,6 +9,7 @@ RUN mvn clean package -Dmaven.test.skip=true --no-transfer-progress
 # Bước 2: Chạy ứng dụng bằng môi trường Java JRE
 FROM eclipse-temurin:21-jre
 WORKDIR /app
+ENV TZ=Asia/Ho_Chi_Minh
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8081
-ENTRYPOINT ["java", "-Xmx300m", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Duser.timezone=Asia/Ho_Chi_Minh", "-Xmx300m", "-jar", "app.jar"]

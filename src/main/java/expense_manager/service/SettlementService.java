@@ -102,7 +102,7 @@ public class SettlementService {
         settlement.setFromMember(memberRepository.getReferenceById(request.fromMemberId()));
         settlement.setToMember(memberRepository.getReferenceById(request.toMemberId()));
         settlement.setAmount(request.amount());
-        settlement.setSettlementDate(LocalDate.now());
+        settlement.setSettlementDate(LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")));
         settlement.setNote(request.note());
         settlement.setPeriodFrom(request.periodFrom());
         settlement.setPeriodTo(request.periodTo());
