@@ -12,6 +12,7 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
       rel="stylesheet"
     />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       body {
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
@@ -306,6 +307,54 @@
         </div>
       </div>
 
+      <!-- Biểu Đồ & Phân Tích Chi Tiêu -->
+      <div class="card shadow-sm mb-4 animate-in">
+        <div class="card-header-custom d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+          <h5 class="mb-0 fw-bold">
+            <i class="bi bi-pie-chart-fill me-2"></i>Biểu Đồ & Phân Tích Chi Tiêu
+          </h5>
+          <span class="badge bg-white text-dark rounded-pill py-2 px-3 fw-semibold shadow-sm">
+            <i class="bi bi-activity text-success me-1"></i>Trực quan hóa tài chính
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="row g-4">
+            <!-- Biểu đồ tròn: Cơ cấu loại chi tiêu -->
+            <div class="col-lg-5 col-md-12">
+              <div class="p-3 border rounded-4 h-100 bg-light shadow-sm text-center">
+                <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-pie-chart me-1 text-primary"></i>Cơ Cấu Chi Tiêu Theo Bữa</h6>
+                <div style="position: relative; height: 260px; max-width: 320px; margin: 0 auto;">
+                  <canvas id="categoryChart"></canvas>
+                </div>
+                <div id="categoryChartEmpty" class="text-muted small py-4 d-none">Chưa có dữ liệu trong kỳ này</div>
+              </div>
+            </div>
+
+            <!-- Biểu đồ cột: Xu hướng chi tiêu theo ngày -->
+            <div class="col-lg-7 col-md-12">
+              <div class="p-3 border rounded-4 h-100 bg-light shadow-sm">
+                <h6 class="fw-bold text-secondary mb-3 text-center text-md-start"><i class="bi bi-graph-up me-1 text-success"></i>Biến Động Chi Tiêu Theo Ngày (VNĐ)</h6>
+                <div style="position: relative; height: 260px;">
+                  <canvas id="dailyTrendChart"></canvas>
+                </div>
+                <div id="dailyTrendChartEmpty" class="text-muted small py-4 text-center d-none">Chưa có dữ liệu trong kỳ này</div>
+              </div>
+            </div>
+
+            <!-- Biểu đồ ngang: Chi tiêu của từng người -->
+            <div class="col-12">
+              <div class="p-3 border rounded-4 bg-light shadow-sm">
+                <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-people-fill me-1 text-warning"></i>Tiền Thực Chi Của Từng Thành Viên (Ai chi bao nhiêu)</h6>
+                <div style="position: relative; height: 200px;">
+                  <canvas id="memberSpendChart"></canvas>
+                </div>
+                <div id="memberSpendChartEmpty" class="text-muted small py-4 text-center d-none">Chưa có dữ liệu</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Thống Kê Theo Ngày -->
       <div class="card shadow-sm mb-4 animate-in">
         <div class="card-header-custom">
@@ -490,6 +539,117 @@
           </div>
         </div>
       </div>
+    <!-- Modal Chỉnh Sửa Hóa Đơn -->
+    <div class="modal fade" id="editExpenseModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-warning text-dark py-3 px-4">
+            <h5 class="modal-title fw-bold">
+              <i class="bi bi-pencil-square me-2"></i>Chỉnh Sửa Hóa Đơn #<span id="editExpenseIdDisplay"></span>
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body p-4">
+            <form id="editExpenseForm">
+              <input type="hidden" id="editExpenseId" />
+
+              <div class="mb-3">
+                <label class="form-label fw-bold text-secondary small">NGÀY CHI TIÊU</label>
+                <input type="date" class="form-control rounded-3 py-2" id="editExpenseDate" required />
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-bold text-secondary small">LOẠI CHI TIÊU</label>
+                <select class="form-select rounded-3 py-2" id="editExpenseType">
+                  <option value="SHARED">📦 Đồ dùng chung (Điện, Nước, Gia vị...)</option>
+                  <option value="BREAKFAST">🍳 Bữa Sáng</option>
+                  <option value="LUNCH">🍚 Bữa Trưa</option>
+                  <option value="DINNER">🍲 Bữa Tối</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-bold text-secondary small">NỘI DUNG CHI TIÊU</label>
+                <input type="text" class="form-control rounded-3 py-2" id="editDescription" required />
+              </div>
+
+              <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="form-label fw-bold text-secondary small mb-0">TỔNG TIỀN HÓA ĐƠN (VNĐ)</label>
+                  <span id="editAmountPreviewText" class="fw-bold text-success small"></span>
+                </div>
+                <input type="number" class="form-control rounded-3 py-2 fw-bold text-danger fs-5" id="editTotalAmount" min="1" required oninput="handleEditTotalChange()" />
+              </div>
+
+              <!-- Dropdown Chọn Người Trả Tiền -->
+              <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="form-label fw-bold text-secondary small mb-0">NGƯỜI TRẢ TIỀN</label>
+                  <span id="editPayerBalanceIndicator" class="badge"></span>
+                </div>
+                <div class="dropdown">
+                  <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start rounded-3 py-2 shadow-sm" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" id="editPayerBtnText">
+                    Chọn người đã trả tiền...
+                  </button>
+                  <ul class="dropdown-menu w-100 p-2 shadow-sm" id="editPayerDropdownMenu"></ul>
+                </div>
+                <div id="editSelectedPayersContainer" class="mt-2"></div>
+              </div>
+
+              <!-- Dropdown Chọn Người Tham Gia -->
+              <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="form-label fw-bold text-secondary small mb-0">NGƯỜI THAM GIA CHIA TIỀN</label>
+                  <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-link text-decoration-none p-0 me-2 text-primary small" onclick="selectAllEditParticipants(true)">Chọn hết</button>
+                    <button type="button" class="btn btn-link text-decoration-none p-0 text-muted small" onclick="selectAllEditParticipants(false)">Bỏ chọn</button>
+                  </div>
+                </div>
+                <div class="dropdown">
+                  <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start rounded-3 py-2 shadow-sm" type="button" id="editParticipantBtnText" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    Đang tải danh sách...
+                  </button>
+                  <ul class="dropdown-menu w-100 p-2 shadow-sm" id="editParticipantDropdownMenu"></ul>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-warning w-100 py-2 rounded-pill fw-bold shadow-sm">
+                <i class="bi bi-check2-circle me-1"></i>Lưu Thay Đổi
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Xác Nhận Xóa / Hủy (thay thế JS confirm) -->
+    <div class="modal fade" id="confirmModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+          <div class="modal-header border-0 pb-0">
+            <h6 class="modal-title fw-bold" id="confirmModalTitle">Xác nhận</h6>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-center py-3">
+            <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 2.5rem;"></i>
+            <div class="mt-2" id="confirmModalBody"></div>
+          </div>
+          <div class="modal-footer border-0 pt-0 justify-content-center">
+            <button type="button" class="btn btn-sm btn-light rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+            <button type="button" class="btn btn-sm btn-danger rounded-pill px-4 fw-bold" id="confirmModalBtn">Đồng ý</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;">
+      <div id="liveToast" class="toast align-items-center text-white border-0 shadow" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body fw-semibold" id="toastMessage"></div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+      </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -508,6 +668,210 @@
       const formatMoney = (amount) => {
         return new Intl.NumberFormat("vi-VN").format(amount);
       };
+
+      function showToast(message, isError = false) {
+        const toastEl = document.getElementById('liveToast');
+        const toastMsg = document.getElementById('toastMessage');
+        toastMsg.innerText = message;
+        toastEl.className = `toast align-items-center text-white border-0 shadow ${isError ? 'bg-danger' : 'bg-success'}`;
+        const toast = new bootstrap.Toast(toastEl, { delay: 3500 });
+        toast.show();
+      }
+
+      function showConfirmDialog(title, message, onConfirm, isDanger = true) {
+        document.getElementById('confirmModalTitle').innerText = title;
+        document.getElementById('confirmModalBody').innerHTML = message;
+        const confirmBtn = document.getElementById('confirmModalBtn');
+        confirmBtn.className = isDanger ? 'btn btn-sm btn-danger rounded-pill px-4 fw-bold' : 'btn btn-sm btn-primary rounded-pill px-4 fw-bold';
+        confirmBtn.onclick = function() {
+          const modal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
+          if (modal) modal.hide();
+          onConfirm();
+        };
+        new bootstrap.Modal(document.getElementById('confirmModal')).show();
+      }
+
+      // Chart.js instances
+      let categoryChartInstance = null;
+      let dailyTrendChartInstance = null;
+      let memberSpendChartInstance = null;
+
+      function renderCategoryAndDailyCharts(dailyData) {
+        // 1. Doughnut Chart: Cơ cấu chi tiêu
+        let sumShared = 0, sumBreakfast = 0, sumLunch = 0, sumDinner = 0;
+        (dailyData || []).forEach(row => {
+          sumShared += Number(row.shared) || 0;
+          sumBreakfast += Number(row.breakfast) || 0;
+          sumLunch += Number(row.lunch) || 0;
+          sumDinner += Number(row.dinner) || 0;
+        });
+        const totalMealSpend = sumShared + sumBreakfast + sumLunch + sumDinner;
+
+        const catCanvas = document.getElementById("categoryChart");
+        const catEmpty = document.getElementById("categoryChartEmpty");
+
+        if (totalMealSpend === 0) {
+          catCanvas.style.display = "none";
+          catEmpty.classList.remove("d-none");
+          if (categoryChartInstance) { categoryChartInstance.destroy(); categoryChartInstance = null; }
+        } else {
+          catCanvas.style.display = "block";
+          catEmpty.classList.add("d-none");
+
+          if (categoryChartInstance) categoryChartInstance.destroy();
+          categoryChartInstance = new Chart(catCanvas, {
+            type: 'doughnut',
+            data: {
+              labels: ['Đồ Chung', 'Sáng', 'Trưa', 'Tối'],
+              datasets: [{
+                data: [sumShared, sumBreakfast, sumLunch, sumDinner],
+                backgroundColor: ['#4caf50', '#ff9800', '#2196f3', '#673ab7'],
+                borderWidth: 2,
+                hoverOffset: 6
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 12, weight: 600 } } },
+                tooltip: {
+                  callbacks: {
+                    label: function(ctx) {
+                      const val = ctx.parsed;
+                      const pct = totalMealSpend > 0 ? ((val / totalMealSpend) * 100).toFixed(1) : 0;
+                      return ` ${ctx.label}: ${formatMoney(val)} đ (${pct}%)`;
+                    }
+                  }
+                }
+              }
+            }
+          });
+        }
+
+        // 2. Bar Chart: Biến động chi tiêu theo ngày
+        const trendCanvas = document.getElementById("dailyTrendChart");
+        const trendEmpty = document.getElementById("dailyTrendChartEmpty");
+
+        if (!dailyData || dailyData.length === 0) {
+          trendCanvas.style.display = "none";
+          trendEmpty.classList.remove("d-none");
+          if (dailyTrendChartInstance) { dailyTrendChartInstance.destroy(); dailyTrendChartInstance = null; }
+        } else {
+          trendCanvas.style.display = "block";
+          trendEmpty.classList.add("d-none");
+
+          const sortedDaily = [...dailyData].sort((a, b) => a.date.localeCompare(b.date));
+          const labels = sortedDaily.map(d => {
+            const parts = d.date.split('-');
+            return parts.length === 3 ? `${parts[2]}/${parts[1]}` : d.date;
+          });
+          const totals = sortedDaily.map(d => Number(d.total) || 0);
+
+          if (dailyTrendChartInstance) dailyTrendChartInstance.destroy();
+          dailyTrendChartInstance = new Chart(trendCanvas, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: 'Tổng tiền (VNĐ)',
+                data: totals,
+                backgroundColor: 'rgba(102, 126, 234, 0.75)',
+                borderColor: '#667eea',
+                borderWidth: 1.5,
+                borderRadius: 6
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    callback: function(val) {
+                      if (val >= 1000000) return (val / 1000000) + 'tr';
+                      if (val >= 1000) return (val / 1000) + 'k';
+                      return val;
+                    }
+                  }
+                }
+              },
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: function(ctx) {
+                      return ` Chi tiêu: ${formatMoney(ctx.parsed.y)} đ`;
+                    }
+                  }
+                }
+              }
+            }
+          });
+        }
+      }
+
+      function renderMemberSpendChart(memberData) {
+        const memCanvas = document.getElementById("memberSpendChart");
+        const memEmpty = document.getElementById("memberSpendChartEmpty");
+
+        if (!memberData || memberData.length === 0) {
+          memCanvas.style.display = "none";
+          memEmpty.classList.remove("d-none");
+          if (memberSpendChartInstance) { memberSpendChartInstance.destroy(); memberSpendChartInstance = null; }
+          return;
+        }
+
+        memCanvas.style.display = "block";
+        memEmpty.classList.add("d-none");
+
+        const sorted = [...memberData].sort((a, b) => b.totalPaid - a.totalPaid);
+        const names = sorted.map(m => m.memberName || m.name);
+        const amounts = sorted.map(m => m.totalPaid);
+        const colors = sorted.map(m => m.avatarColor || '#667eea');
+
+        if (memberSpendChartInstance) memberSpendChartInstance.destroy();
+        memberSpendChartInstance = new Chart(memCanvas, {
+          type: 'bar',
+          data: {
+            labels: names,
+            datasets: [{
+              label: 'Đã chi trả (VNĐ)',
+              data: amounts,
+              backgroundColor: colors,
+              borderRadius: 6
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                beginAtZero: true,
+                ticks: {
+                  callback: function(val) {
+                    if (val >= 1000000) return (val / 1000000) + 'tr';
+                    if (val >= 1000) return (val / 1000) + 'k';
+                    return val;
+                  }
+                }
+              }
+            },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) {
+                    return ` Thực chi: ${formatMoney(ctx.parsed.x)} đ`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
 
       // === MAIN FORM SUBMIT ===
       document
@@ -582,6 +946,8 @@
                 <td class="amount-money text-danger">${formatMoney(grandTotalOwed)}</td>
                 <td colspan="3">—</td>
               </tr>`;
+
+            renderMemberSpendChart(data);
           });
       }
 
@@ -635,6 +1001,8 @@
                 <td class="amount-money text-danger">${formatMoney(sumTotal)}</td>
                 <td></td>
               </tr>`;
+
+            renderCategoryAndDailyCharts(data);
           });
       }
 
@@ -798,16 +1166,22 @@
               <td class="align-middle">${payerColumnHtml}</td>
               <td class="amount-money text-danger align-middle">${formatMoney(row.total)}</td>
               <td class="align-middle">
-                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill"
+                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1"
                     onclick="showBillDetails('${payersJson}', '${participantsJson}', '${safeDesc}', ${splitPerPerson})">
                   <i class="bi bi-eye me-1"></i>Xem
                 </button>
               </td>
               <td class="align-middle">
-                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-bill"
-                    onclick="deleteExpense(${row.id})">
-                  <i class="bi bi-trash3"></i>
-                </button>
+                <div class="d-inline-flex gap-1">
+                  <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-2 py-1"
+                      onclick="openEditExpenseModal(${row.id})" title="Chỉnh sửa hóa đơn">
+                    <i class="bi bi-pencil-square me-1"></i>Sửa
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-delete-bill rounded-pill px-2 py-1"
+                      onclick="deleteExpense(${row.id})" title="Xóa hóa đơn">
+                    <i class="bi bi-trash3"></i>
+                  </button>
+                </div>
               </td>
             </tr>`;
         });
@@ -1093,19 +1467,12 @@
         const amount = parseFloat(input.value);
 
         if (!amount || amount <= 0) {
-          alert("Vui lòng nhập số tiền thanh toán hợp lệ (> 0 VNĐ)!");
+          showToast("Vui lòng nhập số tiền thanh toán hợp lệ (> 0 VNĐ)!", true);
           return;
         }
 
         const note = document.getElementById("qrPaymentNote").value.trim();
         const { fromId, fromName, toId, toName, periodFrom, periodTo, totalDebt } = currentSettlementContext;
-
-        let confirmMsg = `Xác nhận ghi nhận ${fromName} đã trả ${formatMoney(amount)} đ cho ${toName}?`;
-        if (amount < totalDebt) {
-          confirmMsg += `\n(Thanh toán một phần, nợ còn lại: ${formatMoney(totalDebt - amount)} đ)`;
-        }
-
-        if (!confirm(confirmMsg)) return;
 
         const myModal = bootstrap.Modal.getInstance(document.getElementById('qrPaymentModal'));
         if (myModal) myModal.hide();
@@ -1123,43 +1490,269 @@
           })
         }).then(async (res) => {
           if (res.ok) {
-            alert(`✅ Đã ghi nhận thanh toán ${formatMoney(amount)} đ thành công!`);
+            showToast(`✅ Đã ghi nhận thanh toán ${formatMoney(amount)} đ thành công!`);
             document.getElementById("filterForm").dispatchEvent(new Event("submit"));
           } else {
-            alert('❌ Lỗi: ' + (await res.text()));
+            showToast('❌ Lỗi: ' + (await res.text()), true);
           }
         });
       }
 
       // Hủy thanh toán
       function cancelSettlement(id) {
-        if (!confirm('Bạn có chắc muốn hủy khoản thanh toán này?')) return;
-
-        fetch(`/api/settlements/${id}`, { method: 'DELETE' })
-          .then(async (res) => {
-            if (res.ok) {
-              alert('Đã hủy thanh toán');
-              document.getElementById("filterForm").dispatchEvent(new Event("submit"));
-            } else {
-              alert('Lỗi: ' + (await res.text()));
-            }
-          });
+        showConfirmDialog(
+          'Xác nhận hủy thanh toán',
+          'Bạn có chắc chắn muốn hủy khoản thanh toán này? Số nợ giữa 2 thành viên sẽ được khôi phục lại.',
+          function() {
+            fetch(`/api/settlements/${id}`, { method: 'DELETE' })
+              .then(async (res) => {
+                if (res.ok) {
+                  showToast('✅ Đã hủy thanh toán thành công');
+                  document.getElementById("filterForm").dispatchEvent(new Event("submit"));
+                } else {
+                  showToast('❌ Lỗi: ' + (await res.text()), true);
+                }
+              });
+          }
+        );
       }
 
       // Xóa hóa đơn
       function deleteExpense(id) {
-        if (!confirm('⚠️ Bạn có chắc muốn xóa hóa đơn này? Hành động không thể hoàn tác!')) return;
-
-        fetch(`/api/expenses/${id}`, { method: 'DELETE' })
-          .then(async (res) => {
-            if (res.ok) {
-              alert('✅ Đã xóa hóa đơn');
-              document.getElementById("filterForm").dispatchEvent(new Event("submit"));
-            } else {
-              alert('❌ Lỗi: ' + (await res.text()));
-            }
-          });
+        showConfirmDialog(
+          'Xác nhận xóa hóa đơn',
+          'Bạn có chắc chắn muốn xóa hóa đơn này?<br><small class="text-danger fw-bold">⚠️ Hành động này sẽ thay đổi số dư và nợ của tất cả thành viên trong phòng!</small>',
+          function() {
+            fetch(`/api/expenses/${id}`, { method: 'DELETE' })
+              .then(async (res) => {
+                if (res.ok) {
+                  showToast('✅ Đã xóa hóa đơn');
+                  document.getElementById("filterForm").dispatchEvent(new Event("submit"));
+                } else {
+                  showToast('❌ Lỗi: ' + (await res.text()), true);
+                }
+              });
+          }
+        );
       }
+
+      // === EDIT EXPENSE LOGIC ===
+      let currentEditExpenseId = null;
+
+      function openEditExpenseModal(id) {
+        const bill = allBills.find(b => b.id === id);
+        if (!bill) {
+          showToast("Không tìm thấy thông tin hóa đơn!", true);
+          return;
+        }
+
+        currentEditExpenseId = id;
+        document.getElementById("editExpenseId").value = id;
+        document.getElementById("editExpenseIdDisplay").innerText = id;
+        document.getElementById("editExpenseDate").value = bill.date || '';
+        document.getElementById("editExpenseType").value = bill.rawType || 'SHARED';
+        document.getElementById("editDescription").value = bill.description || '';
+        document.getElementById("editTotalAmount").value = bill.total || 0;
+
+        handleEditTotalChange();
+        renderEditDropdowns(bill);
+
+        new bootstrap.Modal(document.getElementById("editExpenseModal")).show();
+      }
+
+      function renderEditDropdowns(bill) {
+        const payerMenu = document.getElementById("editPayerDropdownMenu");
+        const partMenu = document.getElementById("editParticipantDropdownMenu");
+        payerMenu.innerHTML = '';
+        partMenu.innerHTML = '';
+
+        const activePayerIds = new Set((bill.payerMemberIds || []).map(String));
+        const activePartIds = new Set((bill.participantMemberIds || []).map(String));
+
+        membersList.forEach((m) => {
+          const colorDot = `<span style="color:${m.avatarColor || '#6c757d'}; font-size:1.1em;" class="me-1">●</span>`;
+          const isPayerChecked = activePayerIds.has(String(m.id)) ? 'checked' : '';
+          const isPartChecked = activePartIds.has(String(m.id)) ? 'checked' : '';
+
+          payerMenu.innerHTML += `
+            <li class="px-2 py-1">
+              <div class="form-check">
+                <input class="form-check-input edit-payer-checkbox" type="checkbox" value="${m.id}" data-name="${m.name}" id="edit_payer_${m.id}" ${isPayerChecked}>
+                <label class="form-check-label w-100 cursor-pointer d-flex align-items-center" for="edit_payer_${m.id}">
+                  ${colorDot} ${m.name}
+                </label>
+              </div>
+            </li>
+          `;
+
+          partMenu.innerHTML += `
+            <li class="px-2 py-1">
+              <div class="form-check">
+                <input class="form-check-input edit-part-checkbox" type="checkbox" value="${m.id}" id="edit_part_${m.id}" ${isPartChecked}>
+                <label class="form-check-label w-100 cursor-pointer d-flex align-items-center" for="edit_part_${m.id}">
+                  ${colorDot} ${m.name}
+                </label>
+              </div>
+            </li>
+          `;
+        });
+
+        // Gắn sự kiện
+        document.querySelectorAll(".edit-payer-checkbox").forEach(chk => {
+          chk.addEventListener("change", () => updateEditPayerInputs());
+        });
+        document.querySelectorAll(".edit-part-checkbox").forEach(chk => {
+          chk.addEventListener("change", updateEditParticipantText);
+        });
+
+        // Khởi tạo các ô nhập tiền của payers
+        updateEditPayerInputs(bill.payerList);
+        updateEditParticipantText();
+      }
+
+      function updateEditPayerInputs(initialPayerList) {
+        const container = document.getElementById("editSelectedPayersContainer");
+        const checkedPayers = document.querySelectorAll(".edit-payer-checkbox:checked");
+        const payerBtn = document.getElementById("editPayerBtnText");
+
+        payerBtn.innerText = checkedPayers.length === 0 
+          ? "Chọn người đã trả tiền..." 
+          : `Đã chọn ${checkedPayers.length} người trả`;
+
+        // Map số tiền ban đầu nếu có
+        const initialMap = {};
+        if (initialPayerList && Array.isArray(initialPayerList)) {
+          initialPayerList.forEach(p => {
+            if (p.memberId != null) initialMap[String(p.memberId)] = p.amount;
+          });
+        }
+        // Giữ lại số tiền người dùng vừa gõ
+        container.querySelectorAll(".edit-payer-amount-input").forEach(inp => {
+          initialMap[inp.getAttribute("data-id")] = inp.value;
+        });
+
+        container.innerHTML = "";
+        const total = parseFloat(document.getElementById("editTotalAmount").value) || 0;
+
+        checkedPayers.forEach(chk => {
+          const memberId = chk.value;
+          const memberName = chk.getAttribute("data-name");
+          let val = initialMap[memberId] !== undefined ? initialMap[memberId] : '';
+          if (checkedPayers.length === 1 && total > 0 && !val) {
+            val = total;
+          }
+
+          container.innerHTML += `
+            <div class="input-group input-group-sm mt-2 shadow-sm rounded-3">
+              <span class="input-group-text fw-semibold bg-light w-50">${memberName}</span>
+              <input type="number" class="form-control edit-payer-amount-input fw-bold text-primary" 
+                     data-id="${memberId}" placeholder="Số tiền..." value="${val}" required oninput="validateEditPayerAmounts()">
+              <span class="input-group-text text-muted">đ</span>
+            </div>
+          `;
+        });
+
+        validateEditPayerAmounts();
+      }
+
+      function handleEditTotalChange() {
+        const total = parseFloat(document.getElementById("editTotalAmount").value) || 0;
+        document.getElementById("editAmountPreviewText").innerText = total > 0 ? `👉 ${formatMoney(total)} đ` : '';
+        validateEditPayerAmounts();
+      }
+
+      function validateEditPayerAmounts() {
+        const total = parseFloat(document.getElementById("editTotalAmount").value) || 0;
+        const inputs = document.querySelectorAll(".edit-payer-amount-input");
+        const indicator = document.getElementById("editPayerBalanceIndicator");
+
+        if (inputs.length === 0 || total === 0) {
+          indicator.className = "badge d-none";
+          return;
+        }
+
+        let sumPaid = 0;
+        inputs.forEach(inp => { sumPaid += parseFloat(inp.value) || 0; });
+
+        indicator.classList.remove("d-none");
+        if (sumPaid === total) {
+          indicator.className = "badge bg-success";
+          indicator.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i>Khớp ${formatMoney(sumPaid)} đ`;
+        } else if (sumPaid < total) {
+          indicator.className = "badge bg-warning text-dark";
+          indicator.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i>Thiếu ${formatMoney(total - sumPaid)} đ`;
+        } else {
+          indicator.className = "badge bg-danger";
+          indicator.innerHTML = `<i class="bi bi-x-circle-fill me-1"></i>Thừa ${formatMoney(sumPaid - total)} đ`;
+        }
+      }
+
+      function updateEditParticipantText() {
+        const count = document.querySelectorAll(".edit-part-checkbox:checked").length;
+        document.getElementById("editParticipantBtnText").innerText = `Đã chọn ${count} người`;
+      }
+
+      function selectAllEditParticipants(select) {
+        document.querySelectorAll(".edit-part-checkbox").forEach(chk => { chk.checked = select; });
+        updateEditParticipantText();
+      }
+
+      document.getElementById("editExpenseForm").addEventListener("submit", function(e) {
+        e.preventDefault();
+        const id = document.getElementById("editExpenseId").value;
+        const totalAmount = parseFloat(document.getElementById("editTotalAmount").value) || 0;
+
+        const payers = [];
+        let sumPaid = 0;
+        document.querySelectorAll(".edit-payer-amount-input").forEach(inp => {
+          const amt = parseFloat(inp.value) || 0;
+          sumPaid += amt;
+          payers.push({
+            memberId: inp.getAttribute("data-id"),
+            amountPaid: amt
+          });
+        });
+
+        if (payers.length === 0) {
+          showToast("Vui lòng chọn ít nhất 1 người trả tiền!", true);
+          return;
+        }
+
+        if (sumPaid !== totalAmount) {
+          showToast(`Tổng tiền người trả (${formatMoney(sumPaid)} đ) không khớp với hóa đơn (${formatMoney(totalAmount)} đ)!`, true);
+          return;
+        }
+
+        const participantIds = Array.from(document.querySelectorAll(".edit-part-checkbox:checked")).map(chk => chk.value);
+        if (participantIds.length === 0) {
+          showToast("Vui lòng chọn ít nhất 1 người tham gia!", true);
+          return;
+        }
+
+        const payload = {
+          expenseDate: document.getElementById("editExpenseDate").value,
+          type: document.getElementById("editExpenseType").value,
+          description: document.getElementById("editDescription").value,
+          totalAmount: totalAmount,
+          payers: payers,
+          participantIds: participantIds
+        };
+
+        fetch(`/api/expenses/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(async (res) => {
+          if (res.ok) {
+            showToast("✅ Đã cập nhật hóa đơn thành công!");
+            const modal = bootstrap.Modal.getInstance(document.getElementById("editExpenseModal"));
+            if (modal) modal.hide();
+            document.getElementById("filterForm").dispatchEvent(new Event("submit"));
+          } else {
+            showToast("❌ Lỗi: " + (await res.text()), true);
+          }
+        });
+      });
 
       // Hiển thị chi tiết hóa đơn (Modal đầy đủ)
       function showBillDetails(payersStr, participantsStr, description, splitPerPerson) {

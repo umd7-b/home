@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -61,6 +62,12 @@ public class ApiController {
     public ResponseEntity<String> createExpense(@Valid @RequestBody ExpenseRequest request) {
         expenseService.createExpense(request);
         return ResponseEntity.ok("Thêm khoản chi thành công");
+    }
+
+    @PutMapping("/expenses/{id}")
+    public ResponseEntity<String> updateExpense(@PathVariable Long id, @Valid @RequestBody ExpenseRequest request) {
+        expenseService.updateExpense(id, request);
+        return ResponseEntity.ok("Cập nhật hóa đơn thành công");
     }
 
     @DeleteMapping("/expenses/{id}")

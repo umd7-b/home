@@ -52,4 +52,34 @@ public class ExpenseService {
         }
         expenseRepository.deleteById(id);
     }
+
+    @Transactional
+    public void updateExpense(Long id, ExpenseRequest request) {
+        Expense expense = expenseRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy hóa đơn với ID: " + id));
+
+        BigDecimal totalPaid = request.payers().stream()
+                .map(ExpenseRequest.PayerDto::amountPaid)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalPaid.compareTo(request.totalAmount()) != 0) {
+            throw new IllegalArgumentException("Tổng số tiền người chi trả không khớp với tổng hóa đơn");
+        }
+
+        expense.setExpenseDate(request.expenseDate());
+        expense.setType(request.type());
+        expense.setDescription(request.description());
+        expense.setTotalAmount(request.totalAmount());
+        expense.setParticipantMemberIds(request.participantIds());
+
+        expense.getPayers().clear();
+        request.payers().forEach(pDto -> {
+            ExpensePayer payer = new ExpensePayer();
+            payer.setMember(memberRepository.getReferenceById(pDto.memberId()));
+            payer.setAmountPaid(pDto.amountPaid());
+            expense.addPayer(payer);
+        });
+
+        expenseRepository.save(expense);
+    }
 }

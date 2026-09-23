@@ -8,103 +8,239 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <style>
-      #calendar {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 15px;
-        background: #fff;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      }
-      .fc-toolbar-title {
-        font-size: 1.2rem !important;
+      :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       }
       body {
-        background-color: #f8f9fa;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      }
+      .navbar {
+        background: var(--primary-gradient) !important;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      }
+      .calendar-card {
+        max-width: 1000px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        border: none;
+        overflow: hidden;
+      }
+      .calendar-header-banner {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 16px 24px;
+      }
+      #calendar {
+        padding: 20px;
+      }
+      .fc-toolbar-title {
+        font-size: 1.35rem !important;
+        font-weight: 700;
+        color: #2d3748;
+      }
+      .fc-button-primary {
+        background-color: #667eea !important;
+        border-color: #667eea !important;
+        border-radius: 8px !important;
+        box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+      }
+      .fc-button-primary:hover {
+        background-color: #5a6fd6 !important;
+        border-color: #5a6fd6 !important;
+      }
+      .fc-daygrid-day-number {
+        font-weight: 600;
+        color: #4a5568;
+        padding: 6px 8px !important;
+      }
+      .fc-day-today {
+        background: rgba(102, 126, 234, 0.06) !important;
+      }
+      .fc-day-today .fc-daygrid-day-number {
+        background: #667eea;
+        color: white !important;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .fc-daygrid-day:hover {
+        background: rgba(102, 126, 234, 0.03);
+        cursor: pointer;
+      }
+      .fc-event {
+        cursor: pointer;
+        border-radius: 6px !important;
+        border: none !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        font-size: 0.82rem !important;
+        font-weight: 600 !important;
+        padding: 2px 4px !important;
+      }
+      .spending-badge-event {
+        background: linear-gradient(135deg, #11998e, #38ef7d) !important;
+        color: white !important;
+        text-align: center;
+      }
+      .modal-content {
+        border: none;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+      }
+      .modal-header-custom {
+        background: var(--primary-gradient);
+        color: white;
+        padding: 16px 24px;
+        border-bottom: none;
       }
       .dropdown-menu {
-        max-height: 250px;
+        max-height: 280px;
         overflow-y: auto;
+        border-radius: 12px;
+      }
+      .btn-pill {
+        border-radius: 20px;
+        padding: 6px 16px;
+        font-weight: 600;
+      }
+      .amount-preview {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #28a745;
+      }
+      .balance-pill {
+        border-radius: 8px;
+        padding: 4px 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
       }
     </style>
   </head>
   <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
       <div class="container">
-        <a class="navbar-brand" href="/">🏠 Chi Tiêu Phòng</a>
+        <a class="navbar-brand fw-bold d-flex align-items-center" href="/">
+          <i class="bi bi-houses-fill me-2 fs-4"></i>Chi Tiêu Phòng
+        </a>
         <div class="d-flex gap-2">
-          <button class="btn btn-light btn-sm" onclick="addGuest()">
-            + Thêm Khách
+          <button class="btn btn-light btn-sm btn-pill shadow-sm" onclick="openAddGuestModal()">
+            <i class="bi bi-person-plus-fill me-1 text-primary"></i>Thêm Khách
           </button>
-          <a href="/summary" class="btn btn-warning btn-sm">📊 Bảng Tổng Kết</a>
+          <a href="/summary" class="btn btn-warning btn-sm btn-pill shadow-sm text-dark fw-bold">
+            <i class="bi bi-pie-chart-fill me-1"></i>Bảng Tổng Kết
+          </a>
         </div>
       </div>
     </nav>
 
-    <div class="container">
-      <div id="calendar"></div>
+    <!-- Main Content Container -->
+    <div class="container pb-5">
+      <div class="calendar-card">
+        <div class="calendar-header-banner d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <h5 class="mb-0 fw-bold"><i class="bi bi-calendar-event me-2"></i>Lịch Chi Tiêu Hàng Ngày</h5>
+            <small class="opacity-75">Bấm vào ngày bất kỳ để tạo hóa đơn mới</small>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-white text-dark rounded-pill py-2 px-3 shadow-sm">
+              <i class="bi bi-cash-stack text-success me-1"></i>Đã hiển thị tổng tiền mỗi ngày
+            </span>
+          </div>
+        </div>
+        <div id="calendar"></div>
+      </div>
     </div>
 
     <!-- Modal Thêm Chi Tiêu -->
     <div class="modal fade" id="expenseModal" tabindex="-1">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">
-              Thêm chi tiêu ngày <span id="selectedDateText"></span>
+          <div class="modal-header modal-header-custom">
+            <h5 class="modal-title fw-bold">
+              <i class="bi bi-receipt-cutoff me-2"></i>Thêm chi tiêu ngày <span id="selectedDateText" class="badge bg-warning text-dark ms-1"></span>
             </h5>
             <button
               type="button"
-              class="btn-close"
+              class="btn-close btn-close-white"
               data-bs-dismiss="modal"
             ></button>
           </div>
-          <div class="modal-body">
+          <div class="modal-body p-4">
             <form id="expenseForm">
               <input type="hidden" id="expenseDate" />
 
               <div class="mb-3">
-                <label class="form-label">Loại chi tiêu</label>
-                <select class="form-select" id="expenseType">
-                  <option value="SHARED">Đồ dùng chung (Điện, Nước...)</option>
-                  <option value="BREAKFAST">Bữa Sáng</option>
-                  <option value="LUNCH">Bữa Trưa</option>
-                  <option value="DINNER">Bữa Tối</option>
+                <label class="form-label fw-bold text-secondary small">
+                  <i class="bi bi-tag-fill me-1 text-primary"></i>LOẠI CHI TIÊU
+                </label>
+                <select class="form-select rounded-3 py-2" id="expenseType">
+                  <option value="SHARED">📦 Đồ dùng chung (Điện, Nước, Gia vị...)</option>
+                  <option value="BREAKFAST">🍳 Bữa Sáng</option>
+                  <option value="LUNCH">🍚 Bữa Trưa</option>
+                  <option value="DINNER">🍲 Bữa Tối</option>
                 </select>
               </div>
 
               <div class="mb-3">
-                <label class="form-label">Nội dung</label>
+                <label class="form-label fw-bold text-secondary small">
+                  <i class="bi bi-pencil-square me-1 text-primary"></i>NỘI DUNG CHI TIÊU
+                </label>
                 <input
                   type="text"
-                  class="form-control"
+                  class="form-control rounded-3 py-2"
                   id="description"
-                  placeholder="VD: Gà rán + Rau"
+                  placeholder="VD: Gà rán, Mua nước ngọt, Đi siêu thị..."
                   required
                 />
               </div>
 
               <div class="mb-3">
-                <label class="form-label">Tổng tiền hóa đơn (VNĐ)</label>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="form-label fw-bold text-secondary small mb-0">
+                    <i class="bi bi-currency-dollar me-1 text-success"></i>TỔNG TIỀN HÓA ĐƠN (VNĐ)
+                  </label>
+                  <span id="amountPreviewText" class="amount-preview"></span>
+                </div>
                 <input
                   type="number"
-                  class="form-control"
+                  class="form-control rounded-3 py-2 fw-bold text-danger fs-5"
                   id="totalAmount"
+                  placeholder="Nhập số tiền..."
+                  min="1"
                   required
+                  oninput="handleTotalAmountChange()"
                 />
               </div>
 
               <!-- Dropdown Chọn Người Trả Tiền -->
               <div class="mb-3">
-                <label class="form-label">Người trả tiền</label>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="form-label fw-bold text-secondary small mb-0">
+                    <i class="bi bi-credit-card-2-front-fill me-1 text-primary"></i>NGƯỜI TRẢ TIỀN
+                  </label>
+                  <span id="payerBalanceIndicator" class="balance-pill d-none"></span>
+                </div>
                 <div class="dropdown">
                   <button
-                    class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
+                    class="btn btn-outline-secondary dropdown-toggle w-100 text-start rounded-3 py-2 shadow-sm"
                     type="button"
                     data-bs-toggle="dropdown"
                     data-bs-auto-close="outside"
+                    id="payerBtnText"
                   >
                     Chọn người đã trả tiền...
                   </button>
@@ -120,11 +256,19 @@
               </div>
 
               <!-- Dropdown Chọn Người Tham Gia -->
-              <div class="mb-3">
-                <label class="form-label">Người tham gia chia tiền</label>
+              <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="form-label fw-bold text-secondary small mb-0">
+                    <i class="bi bi-people-fill me-1 text-primary"></i>NGƯỜI THAM GIA CHIA TIỀN
+                  </label>
+                  <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-link text-decoration-none p-0 me-2 text-primary small" onclick="selectAllParticipants(true)">Chọn hết</button>
+                    <button type="button" class="btn btn-link text-decoration-none p-0 text-muted small" onclick="selectAllParticipants(false)">Bỏ chọn</button>
+                  </div>
+                </div>
                 <div class="dropdown">
                   <button
-                    class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
+                    class="btn btn-outline-secondary dropdown-toggle w-100 text-start rounded-3 py-2 shadow-sm"
                     type="button"
                     id="participantBtnText"
                     data-bs-toggle="dropdown"
@@ -141,8 +285,8 @@
                 </div>
               </div>
 
-              <button type="submit" class="btn btn-primary w-100">
-                Lưu khoản chi
+              <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill fw-bold shadow-sm" style="background: var(--primary-gradient); border:none;">
+                <i class="bi bi-check2-circle me-1"></i>Lưu Khoản Chi
               </button>
             </form>
           </div>
@@ -150,9 +294,54 @@
       </div>
     </div>
 
+    <!-- Modal Thêm Khách (thay cho prompt) -->
+    <div class="modal fade" id="addGuestModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+          <div class="modal-header modal-header-custom py-2 px-3">
+            <h6 class="modal-title fw-bold"><i class="bi bi-person-plus-fill me-1"></i>Thêm Khách Mới</h6>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body p-3">
+            <label class="form-label small fw-bold text-secondary">Tên khách / Bạn bè:</label>
+            <input type="text" id="guestNameInput" class="form-control rounded-3" placeholder="VD: Huy, Nam, Mai...">
+          </div>
+          <div class="modal-footer p-2">
+            <button type="button" class="btn btn-sm btn-light rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold" onclick="submitAddGuest()">Lưu</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;">
+      <div id="liveToast" class="toast align-items-center text-white border-0 shadow" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body fw-semibold" id="toastMessage"></div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       let membersData = [];
+      let calendarInstance = null;
+
+      function formatMoney(amount) {
+        if (!amount) return '0';
+        return Number(amount).toLocaleString('vi-VN');
+      }
+
+      function showToast(message, isError = false) {
+        const toastEl = document.getElementById('liveToast');
+        const toastMsg = document.getElementById('toastMessage');
+        toastMsg.innerText = message;
+        toastEl.className = `toast align-items-center text-white border-0 shadow ${isError ? 'bg-danger' : 'bg-success'}`;
+        const toast = new bootstrap.Toast(toastEl, { delay: 3500 });
+        toast.show();
+      }
 
       // 1. Tải dữ liệu thành viên
       fetch("/api/members")
@@ -166,27 +355,35 @@
       function renderDropdowns() {
         const payerMenu = document.getElementById("payerDropdownMenu");
         const partMenu = document.getElementById("participantDropdownMenu");
+        payerMenu.innerHTML = '';
+        partMenu.innerHTML = '';
 
         membersData.forEach((m) => {
+          const colorDot = `<span style="color:${m.avatarColor || '#6c757d'}; font-size:1.1em;" class="me-1">●</span>`;
+
           // Checkbox Người trả tiền
           payerMenu.innerHTML += `
-                    <li>
-                        <div class="form-check">
-                            <input class="form-check-input payer-checkbox" type="checkbox" value="${m.id}" data-name="${m.name}" id="payer_${m.id}">
-                            <label class="form-check-label w-100" for="payer_${m.id}">${m.name}</label>
-                        </div>
-                    </li>
-                `;
+            <li class="px-2 py-1">
+              <div class="form-check">
+                <input class="form-check-input payer-checkbox" type="checkbox" value="${m.id}" data-name="${m.name}" id="payer_${m.id}">
+                <label class="form-check-label w-100 cursor-pointer d-flex align-items-center" for="payer_${m.id}">
+                  ${colorDot} ${m.name}
+                </label>
+              </div>
+            </li>
+          `;
 
           // Checkbox Người tham gia (Mặc định chọn hết)
           partMenu.innerHTML += `
-                    <li>
-                        <div class="form-check">
-                            <input class="form-check-input part-checkbox" type="checkbox" value="${m.id}" id="part_${m.id}" checked>
-                            <label class="form-check-label w-100" for="part_${m.id}">${m.name}</label>
-                        </div>
-                    </li>
-                `;
+            <li class="px-2 py-1">
+              <div class="form-check">
+                <input class="form-check-input part-checkbox" type="checkbox" value="${m.id}" id="part_${m.id}" checked>
+                <label class="form-check-label w-100 cursor-pointer d-flex align-items-center" for="part_${m.id}">
+                  ${colorDot} ${m.name}
+                </label>
+              </div>
+            </li>
+          `;
         });
 
         // Gắn sự kiện khi chọn/bỏ chọn người trả tiền
@@ -202,82 +399,208 @@
         updateParticipantText();
       }
 
+      function selectAllParticipants(select) {
+        document.querySelectorAll(".part-checkbox").forEach((chk) => {
+          chk.checked = select;
+        });
+        updateParticipantText();
+      }
+
       // 3. Tự động sinh ô nhập tiền khi tích chọn Người trả tiền
       function updatePayerInputs() {
         const container = document.getElementById("selectedPayersContainer");
+        const checkedPayers = document.querySelectorAll(".payer-checkbox:checked");
+        const payerBtn = document.getElementById("payerBtnText");
+
+        payerBtn.innerText = checkedPayers.length === 0 
+          ? "Chọn người đã trả tiền..." 
+          : `Đã chọn ${checkedPayers.length} người trả`;
+
+        // Giữ lại các giá trị đã nhập nếu có
+        const currentValues = {};
+        container.querySelectorAll(".payer-amount-input").forEach((inp) => {
+          currentValues[inp.getAttribute("data-id")] = inp.value;
+        });
+
         container.innerHTML = "";
 
-        document.querySelectorAll(".payer-checkbox:checked").forEach((chk) => {
+        const totalAmount = parseFloat(document.getElementById("totalAmount").value) || 0;
+
+        checkedPayers.forEach((chk, index) => {
           const memberId = chk.value;
           const memberName = chk.getAttribute("data-name");
+          // Nếu chỉ có 1 người trả và chưa nhập tiền, tự động điền tổng tiền
+          let defaultVal = currentValues[memberId] || '';
+          if (checkedPayers.length === 1 && totalAmount > 0 && !defaultVal) {
+            defaultVal = totalAmount;
+          }
 
           container.innerHTML += `
-                    <div class="input-group mt-2">
-                        <span class="input-group-text w-50">${memberName}</span>
-                        <input type="number" class="form-control payer-amount-input" data-id="${memberId}" placeholder="Nhập số tiền..." required>
-                        <span class="input-group-text">VNĐ</span>
-                    </div>
-                `;
+            <div class="input-group input-group-sm mt-2 shadow-sm rounded-3">
+              <span class="input-group-text fw-semibold bg-light w-50">${memberName}</span>
+              <input type="number" class="form-control payer-amount-input fw-bold text-primary" 
+                     data-id="${memberId}" placeholder="Số tiền..." value="${defaultVal}" required oninput="validatePayerAmounts()">
+              <span class="input-group-text text-muted">đ</span>
+            </div>
+          `;
         });
+
+        validatePayerAmounts();
+      }
+
+      function handleTotalAmountChange() {
+        const total = parseFloat(document.getElementById("totalAmount").value) || 0;
+        const preview = document.getElementById("amountPreviewText");
+        preview.innerText = total > 0 ? `👉 ${formatMoney(total)} đ` : '';
+
+        const checkedPayers = document.querySelectorAll(".payer-checkbox:checked");
+        if (checkedPayers.length === 1) {
+          const singleInput = document.querySelector(".payer-amount-input");
+          if (singleInput) {
+            singleInput.value = total;
+          }
+        }
+        validatePayerAmounts();
+      }
+
+      function validatePayerAmounts() {
+        const total = parseFloat(document.getElementById("totalAmount").value) || 0;
+        const inputs = document.querySelectorAll(".payer-amount-input");
+        const indicator = document.getElementById("payerBalanceIndicator");
+
+        if (inputs.length === 0 || total === 0) {
+          indicator.className = "balance-pill d-none";
+          return;
+        }
+
+        let sumPaid = 0;
+        inputs.forEach(inp => {
+          sumPaid += parseFloat(inp.value) || 0;
+        });
+
+        indicator.classList.remove("d-none");
+        if (sumPaid === total) {
+          indicator.className = "balance-pill bg-success text-white";
+          indicator.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i>Khớp ${formatMoney(sumPaid)} đ`;
+        } else if (sumPaid < total) {
+          indicator.className = "balance-pill bg-warning text-dark";
+          indicator.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i>Thiếu ${formatMoney(total - sumPaid)} đ`;
+        } else {
+          indicator.className = "balance-pill bg-danger text-white";
+          indicator.innerHTML = `<i class="bi bi-x-circle-fill me-1"></i>Thừa ${formatMoney(sumPaid - total)} đ`;
+        }
       }
 
       // 4. Cập nhật chữ hiển thị trên nút Dropdown Người tham gia
       function updateParticipantText() {
-        const checkedCount = document.querySelectorAll(
-          ".part-checkbox:checked",
-        ).length;
+        const checkedCount = document.querySelectorAll(".part-checkbox:checked").length;
         document.getElementById("participantBtnText").innerText =
           `Đã chọn ${checkedCount} người`;
       }
 
-      // 5. Khởi tạo Lịch FullCalendar
+      // 5. Khởi tạo Lịch FullCalendar với sự kiện hiển thị tiền mỗi ngày
       document.addEventListener("DOMContentLoaded", function () {
-        var calendarEl = document.getElementById("calendar");
-        var calendar = new FullCalendar.Calendar(calendarEl, {
+        const calendarEl = document.getElementById("calendar");
+        calendarInstance = new FullCalendar.Calendar(calendarEl, {
           initialView: "dayGridMonth",
           locale: "vi",
+          firstDay: 1, // Thứ 2 bắt đầu tuần
           headerToolbar: {
             left: "prev,next today",
             center: "title",
             right: "dayGridMonth",
           },
-          dateClick: function (info) {
-            // Reset form mỗi khi mở ngày mới
-            document.getElementById("expenseForm").reset();
-            document.getElementById("selectedPayersContainer").innerHTML = "";
-            document
-              .querySelectorAll(".part-checkbox")
-              .forEach((chk) => (chk.checked = false));
-            updateParticipantText();
+          buttonText: {
+            today: "Hôm nay",
+            month: "Tháng"
+          },
+          // Tự động load tổng chi tiêu của từng ngày từ API
+          events: function(fetchInfo, successCallback, failureCallback) {
+            const from = fetchInfo.startStr.split('T')[0];
+            const to = fetchInfo.endStr.split('T')[0];
+            fetch(`/api/statistics/daily?from=${from}&to=${to}`)
+              .then((res) => res.json())
+              .then((data) => {
+                const events = data.map((item) => {
+                  let breakdown = [];
+                  if (item.shared > 0) breakdown.push(`Chung: ${formatMoney(item.shared)}`);
+                  if (item.breakfast > 0) breakdown.push(`Sáng: ${formatMoney(item.breakfast)}`);
+                  if (item.lunch > 0) breakdown.push(`Trưa: ${formatMoney(item.lunch)}`);
+                  if (item.dinner > 0) breakdown.push(`Tối: ${formatMoney(item.dinner)}`);
 
-            // Set ngày và mở Modal
-            document.getElementById("expenseDate").value = info.dateStr;
-            document.getElementById("selectedDateText").innerText =
-              info.dateStr;
-            new bootstrap.Modal(document.getElementById("expenseModal")).show();
+                  return {
+                    title: `💸 ${formatMoney(item.total)} đ`,
+                    start: item.date,
+                    allDay: true,
+                    className: "spending-badge-event",
+                    extendedProps: {
+                      details: breakdown.join(' | ') || 'Chi tiết'
+                    }
+                  };
+                });
+                successCallback(events);
+              })
+              .catch((err) => {
+                console.error("Lỗi tải chi tiêu lịch:", err);
+                failureCallback(err);
+              });
+          },
+          eventClick: function(info) {
+            // Khi click vào event ngày, mở modal thêm chi tiêu cho ngày đó
+            openExpenseModalForDate(info.event.startStr);
+          },
+          dateClick: function (info) {
+            openExpenseModalForDate(info.dateStr);
           },
         });
-        calendar.render();
+        calendarInstance.render();
       });
+
+      function openExpenseModalForDate(dateStr) {
+        // Reset form mỗi khi mở ngày mới
+        document.getElementById("expenseForm").reset();
+        document.getElementById("selectedPayersContainer").innerHTML = "";
+        document.getElementById("amountPreviewText").innerText = "";
+        document.getElementById("payerBalanceIndicator").className = "balance-pill d-none";
+        document.getElementById("payerBtnText").innerText = "Chọn người đã trả tiền...";
+        document.querySelectorAll(".payer-checkbox").forEach((chk) => (chk.checked = false));
+
+        // Mặc định chọn TẤT CẢ thành viên tham gia chia tiền
+        document.querySelectorAll(".part-checkbox").forEach((chk) => (chk.checked = true));
+        updateParticipantText();
+
+        // Set ngày và mở Modal
+        document.getElementById("expenseDate").value = dateStr;
+        document.getElementById("selectedDateText").innerText = dateStr;
+        new bootstrap.Modal(document.getElementById("expenseModal")).show();
+      }
 
       // 6. Xử lý Gửi Form lên Server
       document
         .getElementById("expenseForm")
         .addEventListener("submit", function (e) {
           e.preventDefault();
-          const totalAmount = document.getElementById("totalAmount").value;
+          const totalAmount = parseFloat(document.getElementById("totalAmount").value) || 0;
 
           // Lấy danh sách người trả và số tiền tương ứng
           const payers = [];
+          let sumPaid = 0;
           document.querySelectorAll(".payer-amount-input").forEach((input) => {
+            const amt = parseFloat(input.value) || 0;
+            sumPaid += amt;
             payers.push({
               memberId: input.getAttribute("data-id"),
-              amountPaid: input.value,
+              amountPaid: amt,
             });
           });
 
           if (payers.length === 0) {
-            alert("Vui lòng chọn ít nhất 1 người trả tiền!");
+            showToast("Vui lòng chọn ít nhất 1 người trả tiền!", true);
+            return;
+          }
+
+          if (sumPaid !== totalAmount) {
+            showToast(`Tổng tiền người trả (${formatMoney(sumPaid)} đ) không khớp với hóa đơn (${formatMoney(totalAmount)} đ)!`, true);
             return;
           }
 
@@ -287,7 +610,7 @@
           ).map((chk) => chk.value);
 
           if (participantIds.length === 0) {
-            alert("Vui lòng chọn ít nhất 1 người tham gia chia tiền!");
+            showToast("Vui lòng chọn ít nhất 1 người tham gia chia tiền!", true);
             return;
           }
 
@@ -306,25 +629,48 @@
             body: JSON.stringify(payload),
           }).then(async (res) => {
             if (res.ok) {
-              alert("Lưu khoản chi thành công!");
-              location.reload();
+              showToast("✅ Lưu khoản chi thành công!");
+              const modal = bootstrap.Modal.getInstance(document.getElementById("expenseModal"));
+              if (modal) modal.hide();
+              if (calendarInstance) calendarInstance.refetchEvents();
             } else {
-              alert("Lỗi: " + (await res.text()));
+              const err = await res.text();
+              showToast("❌ Lỗi: " + err, true);
             }
           });
         });
-      function addGuest() {
-        const guestName = prompt("Nhập tên khách:");
-        if (guestName && guestName.trim() !== "") {
-          fetch(`/api/members?name=${encodeURIComponent(guestName.trim())}`, {
-            method: "POST",
-          }).then((res) => {
-            if (res.ok) {
-              alert("Đã thêm khách!");
-              location.reload();
-            }
-          });
+
+      // Modal Thêm Khách
+      function openAddGuestModal() {
+        document.getElementById("guestNameInput").value = '';
+        new bootstrap.Modal(document.getElementById("addGuestModal")).show();
+      }
+
+      function submitAddGuest() {
+        const guestName = document.getElementById("guestNameInput").value.trim();
+        if (!guestName) {
+          showToast("Vui lòng nhập tên khách!", true);
+          return;
         }
+
+        fetch(`/api/members?name=${encodeURIComponent(guestName)}`, {
+          method: "POST",
+        }).then(async (res) => {
+          if (res.ok) {
+            showToast(`✅ Đã thêm khách ${guestName}!`);
+            const modal = bootstrap.Modal.getInstance(document.getElementById("addGuestModal"));
+            if (modal) modal.hide();
+            // Tải lại danh sách thành viên để cập nhật dropdown
+            fetch("/api/members")
+              .then((r) => r.json())
+              .then((data) => {
+                membersData = data;
+                renderDropdowns();
+              });
+          } else {
+            showToast("❌ Lỗi: " + (await res.text()), true);
+          }
+        });
       }
     </script>
   </body>

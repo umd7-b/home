@@ -168,6 +168,7 @@ public class SummaryService {
             
             // Chuyển loại chi tiêu sang tiếng Việt
             String typeVN = "";
+            String rawType = e.getType() != null ? e.getType().name() : "";
             if (e.getType() != null) {
                 switch (e.getType().name()) {
                     case "BREAKFAST": typeVN = "Sáng"; break;
@@ -178,6 +179,7 @@ public class SummaryService {
                 }
             }
             row.put("type", typeVN);
+            row.put("rawType", rawType);
             
             // Lấy chính xác ai trả bao nhiêu cho riêng bill này
             Map<String, BigDecimal> payersMap = new HashMap<>();
@@ -215,6 +217,7 @@ public class SummaryService {
                 }
             }
             row.put("participantDetails", participantsList);
+            row.put("participantMemberIds", e.getParticipantMemberIds());
             
             // Tính số tiền mỗi người phải chịu (làm tròn đến số nguyên gần nhất)
             int participantCount = e.getParticipantMemberIds().size();
