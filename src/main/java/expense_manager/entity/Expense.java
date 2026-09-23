@@ -2,18 +2,18 @@ package expense_manager.entity;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
-
-import jakarta.persistence.*;
-import lombok.*;
-import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
-@Table(name = "expenses")
+@Table(name = "expenses", indexes = {
+    @Index(name = "idx_expense_date", columnList = "expense_date")
+})
 @Getter @Setter @NoArgsConstructor
 public class Expense {
     @Id
@@ -41,12 +41,12 @@ public class Expense {
     private List<Long> participantMemberIds = new ArrayList<>();
 
     @Column(name = "created_at", updatable = false)
-    private java.time.LocalDateTime createdAt;
+    private LocalDateTime createdAt;
 
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
-            createdAt = java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+            createdAt = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         }
     }
 

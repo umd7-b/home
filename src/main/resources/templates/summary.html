@@ -281,10 +281,19 @@
 
       <!-- Lịch Sử Thanh Toán -->
       <div class="card shadow-sm mb-4 animate-in">
-        <div class="card-header-history">
+        <div class="card-header-history d-flex justify-content-between align-items-center flex-wrap gap-2">
           <h5 class="mb-0">
             <i class="bi bi-clock-history me-2"></i>Lịch Sử Thanh Toán
           </h5>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="d-flex align-items-center gap-1">
+              <label for="settlementFilterDate" class="text-white small mb-0 fw-bold text-nowrap">Ngày:</label>
+              <input type="date" id="settlementFilterDate" class="form-control form-control-sm rounded-pill" style="min-width: 140px;" onchange="filterSettlements()">
+            </div>
+            <button type="button" class="btn btn-sm btn-light rounded-pill py-1 px-3 fw-semibold shadow-sm" onclick="resetSettlementFilter()" title="Xóa bộ lọc">
+              <i class="bi bi-arrow-counterclockwise me-1"></i>Đặt lại
+            </button>
+          </div>
         </div>
         <div class="card-body">
           <div id="settlementHistory">
@@ -885,31 +894,59 @@
         fetch(`/api/settlements?from=${from}&to=${to}`)
           .then((res) => res.json())
           .then((data) => {
-            allSettlements = data;
+            // Sắp xếp mới nhất lên trước (theo createdAt giảm dần)
+            allSettlements = data.sort((a, b) => {
+              const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+              const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+              return dateB - dateA;
+            });
             currentSettlementPage = 1;
             renderSettlements();
           });
       }
 
+      function getFilteredSettlements() {
+        const filterDate = document.getElementById("settlementFilterDate")?.value;
+        if (!filterDate) return allSettlements;
+        return allSettlements.filter(s => s.date === filterDate);
+      }
+
+      function filterSettlements() {
+        currentSettlementPage = 1;
+        renderSettlements();
+      }
+
+      function resetSettlementFilter() {
+        const dateInput = document.getElementById("settlementFilterDate");
+        if (dateInput) dateInput.value = '';
+        currentSettlementPage = 1;
+        renderSettlements();
+      }
+
       function renderSettlements() {
         const container = document.getElementById("settlementHistory");
         const pagination = document.getElementById("settlementPagination");
+        const filtered = getFilteredSettlements();
 
-        if (allSettlements.length === 0) {
+        if (filtered.length === 0) {
+          const filterDate = document.getElementById("settlementFilterDate")?.value;
+          const msg = filterDate 
+            ? `Không có thanh toán nào vào ngày ${filterDate}` 
+            : 'Chưa có thanh toán nào trong kỳ này';
           container.innerHTML = `
             <div class="empty-state">
               <i class="bi bi-journal-check"></i>
-              Chưa có thanh toán nào trong kỳ này
+              ${msg}
             </div>`;
           pagination.innerHTML = "";
           return;
         }
 
-        const totalPages = Math.ceil(allSettlements.length / settlementsPerPage);
+        const totalPages = Math.ceil(filtered.length / settlementsPerPage);
         const startIndex = (currentSettlementPage - 1) * settlementsPerPage;
-        const pageData = allSettlements.slice(startIndex, startIndex + settlementsPerPage);
+        const pageData = filtered.slice(startIndex, startIndex + settlementsPerPage);
 
-        let html = '';
+        let html = `<div class="text-muted small mb-2 px-1"><i class="bi bi-info-circle me-1"></i>Hiển thị ${filtered.length} thanh toán (mới nhất trước)</div>`;
         pageData.forEach((s) => {
           const timeStr = s.createdAt ? new Date(s.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' }) : '';
           html += `

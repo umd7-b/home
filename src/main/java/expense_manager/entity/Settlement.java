@@ -10,7 +10,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "settlements")
+@Table(name = "settlements", indexes = {
+    @Index(name = "idx_settlement_period", columnList = "period_from, period_to")
+})
 @Getter @Setter @NoArgsConstructor
 public class Settlement {
     @Id

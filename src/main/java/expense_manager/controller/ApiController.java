@@ -59,22 +59,14 @@ public class ApiController {
 
     @PostMapping("/expenses")
     public ResponseEntity<String> createExpense(@Valid @RequestBody ExpenseRequest request) {
-        try {
-            expenseService.createExpense(request);
-            return ResponseEntity.ok("Thêm khoản chi thành công");
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        expenseService.createExpense(request);
+        return ResponseEntity.ok("Thêm khoản chi thành công");
     }
 
     @DeleteMapping("/expenses/{id}")
     public ResponseEntity<String> deleteExpense(@PathVariable Long id) {
-        try {
-            expenseService.deleteExpense(id);
-            return ResponseEntity.ok("Xóa hóa đơn thành công");
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        expenseService.deleteExpense(id);
+        return ResponseEntity.ok("Xóa hóa đơn thành công");
     }
 
     // ==================== SUMMARY & STATISTICS ====================
@@ -111,12 +103,8 @@ public class ApiController {
 
     @PostMapping("/settlements")
     public ResponseEntity<String> createSettlement(@Valid @RequestBody SettlementRequest request) {
-        try {
-            settlementService.createSettlement(request);
-            return ResponseEntity.ok("Ghi nhận thanh toán thành công");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
-        }
+        settlementService.createSettlement(request);
+        return ResponseEntity.ok("Ghi nhận thanh toán thành công");
     }
 
     @GetMapping("/settlements")
@@ -128,11 +116,7 @@ public class ApiController {
 
     @DeleteMapping("/settlements/{id}")
     public ResponseEntity<String> deleteSettlement(@PathVariable Long id) {
-        try {
-            settlementService.deleteSettlement(id);
-            return ResponseEntity.ok("Đã hủy thanh toán");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
-        }
+        settlementService.deleteSettlement(id);
+        return ResponseEntity.ok("Đã hủy thanh toán");
     }
 }
