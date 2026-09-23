@@ -30,54 +30,85 @@ public class SettlementService {
     private final SummaryService summaryService;
 
     /**
-     * Tính toán ai nợ ai bao nhiêu, sử dụng thuật toán ghép nợ tối ưu (ít giao dịch nhất).
+     * Tính toán ai nợ ai bao nhiêu, sử dụng thuật toán tối ưu số giao dịch ít nhất.
      * 
-     * Thuật toán:
-     * 1. Lấy balance (số dư) của mỗi người từ SummaryService
+     * Thuật toán Min-Transactions:
+     * 1. Lấy finalBalance (số dư cuối) của mỗi người từ SummaryService
      * 2. Tách thành 2 nhóm: debtors (balance < 0, nợ) và creditors (balance > 0, dư)
-     * 3. Sắp xếp theo số tiền giảm dần
-     * 4. Ghép từng cặp debtor-creditor cho đến khi hết nợ
+     * 3. Ưu tiên tìm các cặp debtor-creditor có số tiền bằng nhau (exact match) 
+     *    → Mỗi cặp exact match giảm được 1 giao dịch so với greedy
+     * 4. Phần còn lại dùng greedy ghép cặp (nợ nhiều nhất ghép với dư nhiều nhất)
+     * 
+     * Ví dụ: A nợ 100k, B nợ 200k, C dư 100k, D dư 200k
+     * - Greedy: A→D 100k, B→D 100k, B→C 100k (3 giao dịch)
+     * - Min-Tx: A→C 100k (exact), B→D 200k (exact) (2 giao dịch) ← tối ưu hơn
      */
     @Transactional(readOnly = true)
     public List<DebtDto> calculateDebts(LocalDate from, LocalDate to) {
         List<MemberSummary> summaries = summaryService.getSummary(from, to);
         
-        // Tạo balance map đã điều chỉnh (đã bao gồm các giao dịch thanh toán)
-        List<BalanceEntry> balances = new ArrayList<>();
+        // Tạo danh sách balance đã điều chỉnh (đã bao gồm các giao dịch thanh toán trước đó)
+        List<BalanceEntry> debtors = new ArrayList<>();
+        List<BalanceEntry> creditors = new ArrayList<>();
+        
         for (MemberSummary ms : summaries) {
             BigDecimal adjusted = ms.finalBalance();
-            if (adjusted.compareTo(BigDecimal.ZERO) != 0) {
-                balances.add(new BalanceEntry(ms.memberId(), ms.memberName(), ms.avatarColor(), adjusted));
+            if (adjusted.compareTo(BigDecimal.ZERO) < 0) {
+                debtors.add(new BalanceEntry(ms.memberId(), ms.memberName(), ms.avatarColor(), adjusted));
+            } else if (adjusted.compareTo(BigDecimal.ZERO) > 0) {
+                creditors.add(new BalanceEntry(ms.memberId(), ms.memberName(), ms.avatarColor(), adjusted));
             }
         }
         
-        // Tách debtors (nợ, balance < 0) và creditors (dư, balance > 0)
-        List<BalanceEntry> debtors = balances.stream()
+        List<DebtDto> debts = new ArrayList<>();
+        
+        // === Bước 1: Tìm các cặp exact match (nợ == dư) để giảm số giao dịch ===
+        for (int i = 0; i < debtors.size(); i++) {
+            BalanceEntry debtor = debtors.get(i);
+            if (debtor.balance.compareTo(BigDecimal.ZERO) == 0) continue;
+            
+            for (int j = 0; j < creditors.size(); j++) {
+                BalanceEntry creditor = creditors.get(j);
+                if (creditor.balance.compareTo(BigDecimal.ZERO) == 0) continue;
+                
+                // Nếu số nợ == số dư → ghép thành 1 giao dịch duy nhất, triệt tiêu cả 2
+                if (debtor.balance.abs().compareTo(creditor.balance) == 0) {
+                    debts.add(new DebtDto(
+                        debtor.memberId, debtor.name, debtor.color,
+                        creditor.memberId, creditor.name, creditor.color,
+                        debtor.balance.abs()
+                    ));
+                    debtor.balance = BigDecimal.ZERO;
+                    creditor.balance = BigDecimal.ZERO;
+                    break;
+                }
+            }
+        }
+        
+        // === Bước 2: Sắp xếp phần còn lại và ghép greedy ===
+        // Lọc bỏ các entry đã triệt tiêu ở bước 1
+        List<BalanceEntry> remainingDebtors = debtors.stream()
                 .filter(b -> b.balance.compareTo(BigDecimal.ZERO) < 0)
-                .sorted(Comparator.comparing(b -> b.balance)) // nợ nhiều nhất trước
+                .sorted(Comparator.comparing(b -> b.balance)) // nợ nhiều nhất trước (giá trị âm nhỏ nhất)
                 .collect(Collectors.toList());
         
-        List<BalanceEntry> creditors = balances.stream()
+        List<BalanceEntry> remainingCreditors = creditors.stream()
                 .filter(b -> b.balance.compareTo(BigDecimal.ZERO) > 0)
                 .sorted(Comparator.comparing(b -> ((BalanceEntry) b).balance).reversed()) // dư nhiều nhất trước
                 .collect(Collectors.toList());
         
-        // Thuật toán ghép nợ tối ưu (greedy)
-        List<DebtDto> debts = new ArrayList<>();
         int i = 0, j = 0;
-        while (i < debtors.size() && j < creditors.size()) {
-            BalanceEntry debtor = debtors.get(i);
-            BalanceEntry creditor = creditors.get(j);
+        while (i < remainingDebtors.size() && j < remainingCreditors.size()) {
+            BalanceEntry debtor = remainingDebtors.get(i);
+            BalanceEntry creditor = remainingCreditors.get(j);
             
             BigDecimal debtAmount = debtor.balance.abs();
             BigDecimal creditAmount = creditor.balance;
             BigDecimal transferAmount = debtAmount.min(creditAmount);
             
-            // Cập nhật balance ngay lập tức để tiếp tục vòng lặp
             debtor.balance = debtor.balance.add(transferAmount);
             creditor.balance = creditor.balance.subtract(transferAmount);
             
-            // Đề xuất thanh toán đúng chính xác số tiền lẻ đến từng đồng để khớp hoàn toàn với bảng Còn Lại
             if (transferAmount.compareTo(BigDecimal.ZERO) > 0) {
                 debts.add(new DebtDto(
                     debtor.memberId, debtor.name, debtor.color,
@@ -89,6 +120,9 @@ public class SettlementService {
             if (debtor.balance.compareTo(BigDecimal.ZERO) == 0) i++;
             if (creditor.balance.compareTo(BigDecimal.ZERO) == 0) j++;
         }
+        
+        // Sắp xếp kết quả: giao dịch lớn nhất lên trước
+        debts.sort(Comparator.comparing(DebtDto::amount).reversed());
         
         return debts;
     }

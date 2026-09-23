@@ -911,6 +911,7 @@
 
         let html = '';
         pageData.forEach((s) => {
+          const timeStr = s.createdAt ? new Date(s.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' }) : '';
           html += `
             <div class="settlement-card d-flex align-items-center justify-content-between flex-wrap gap-2">
               <div>
