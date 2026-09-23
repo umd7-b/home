@@ -539,6 +539,8 @@
           </div>
         </div>
       </div>
+    </div>
+
     <!-- Modal Chỉnh Sửa Hóa Đơn -->
     <div class="modal fade" id="editExpenseModal" tabindex="-1">
       <div class="modal-dialog modal-dialog-centered">
@@ -679,16 +681,28 @@
       }
 
       function showConfirmDialog(title, message, onConfirm, isDanger = true) {
+        const modalEl = document.getElementById('confirmModal');
+        if (!modalEl || typeof bootstrap === 'undefined') {
+          const cleanMsg = message.replace(/<[^>]*>/g, ' ');
+          if (confirm(cleanMsg)) {
+            if (typeof onConfirm === 'function') onConfirm();
+          }
+          return;
+        }
+
         document.getElementById('confirmModalTitle').innerText = title;
         document.getElementById('confirmModalBody').innerHTML = message;
         const confirmBtn = document.getElementById('confirmModalBtn');
         confirmBtn.className = isDanger ? 'btn btn-sm btn-danger rounded-pill px-4 fw-bold' : 'btn btn-sm btn-primary rounded-pill px-4 fw-bold';
+        
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         confirmBtn.onclick = function() {
-          const modal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
-          if (modal) modal.hide();
-          onConfirm();
+          modal.hide();
+          if (typeof onConfirm === 'function') {
+            onConfirm();
+          }
         };
-        new bootstrap.Modal(document.getElementById('confirmModal')).show();
+        modal.show();
       }
 
       // Chart.js instances
@@ -1589,6 +1603,9 @@
                 } else {
                   showToast('❌ Lỗi: ' + (await res.text()), true);
                 }
+              })
+              .catch((err) => {
+                showToast('❌ Lỗi kết nối: ' + err.message, true);
               });
           }
         );
@@ -1608,6 +1625,9 @@
                 } else {
                   showToast('❌ Lỗi: ' + (await res.text()), true);
                 }
+              })
+              .catch((err) => {
+                showToast('❌ Lỗi kết nối: ' + err.message, true);
               });
           }
         );
