@@ -1196,20 +1196,52 @@
             <td colspan="2"></td>
           </tr>`;
           
-        renderBillPagination(totalPages);
+        renderBillPagination(totalPages, filteredData.length);
       }
 
-      function renderBillPagination(totalPages) {
+      function renderBillPagination(totalPages, totalItems) {
         const container = document.getElementById("billPagination");
+        if (!container) return;
+
         if (totalPages <= 1) {
-            container.innerHTML = "";
-            return;
+          container.innerHTML = `
+            <div class="text-center text-muted small py-1">
+              <span class="badge bg-light text-secondary border rounded-pill py-2 px-3 shadow-sm">
+                <i class="bi bi-check2-circle text-success me-1"></i>Trang 1 / 1 (Tổng ${totalItems || 0} hóa đơn, 20 bản ghi/trang)
+              </span>
+            </div>`;
+          return;
         }
+
+        let html = '<nav aria-label="Bill pagination"><ul class="pagination pagination-sm mb-0 shadow-sm">';
         
-        let html = '';
-        html += `<button class="btn btn-sm btn-outline-secondary" ${currentBillPage === 1 ? 'disabled' : ''} onclick="changeBillPage(${currentBillPage - 1})">Trước</button>`;
-        html += `<span class="align-self-center mx-2 small text-muted">Trang ${currentBillPage} / ${totalPages}</span>`;
-        html += `<button class="btn btn-sm btn-outline-secondary" ${currentBillPage === totalPages ? 'disabled' : ''} onclick="changeBillPage(${currentBillPage + 1})">Sau</button>`;
+        // Nút Trước
+        html += `<li class="page-item ${currentBillPage === 1 ? 'disabled' : ''}">
+          <button class="page-link rounded-start-pill px-3" onclick="changeBillPage(${currentBillPage - 1})" aria-label="Trước">
+            <i class="bi bi-chevron-left me-1"></i>Trước
+          </button>
+        </li>`;
+
+        // Các số trang
+        for (let p = 1; p <= totalPages; p++) {
+          if (p === 1 || p === totalPages || (p >= currentBillPage - 2 && p <= currentBillPage + 2)) {
+            const activeClass = p === currentBillPage ? 'active' : '';
+            html += `<li class="page-item ${activeClass}">
+              <button class="page-link px-3" onclick="changeBillPage(${p})">${p}</button>
+            </li>`;
+          } else if (p === currentBillPage - 3 || p === currentBillPage + 3) {
+            html += `<li class="page-item disabled"><span class="page-link px-2">...</span></li>`;
+          }
+        }
+
+        // Nút Sau
+        html += `<li class="page-item ${currentBillPage === totalPages ? 'disabled' : ''}">
+          <button class="page-link rounded-end-pill px-3" onclick="changeBillPage(${currentBillPage + 1})" aria-label="Sau">
+            Sau<i class="bi bi-chevron-right ms-1"></i>
+          </button>
+        </li>`;
+
+        html += '</ul></nav>';
         container.innerHTML = html;
       }
 
@@ -1319,8 +1351,21 @@
         const totalPages = Math.ceil(filtered.length / settlementsPerPage);
         const startIndex = (currentSettlementPage - 1) * settlementsPerPage;
         const pageData = filtered.slice(startIndex, startIndex + settlementsPerPage);
+        const startItem = filtered.length > 0 ? startIndex + 1 : 0;
+        const endItem = Math.min(startIndex + settlementsPerPage, filtered.length);
 
-        let html = `<div class="text-muted small mb-2 px-1"><i class="bi bi-info-circle me-1"></i>Hiển thị ${filtered.length} thanh toán (mới nhất trước)</div>`;
+        let html = `
+          <div class="d-flex justify-content-between align-items-center text-muted small mb-2 px-1 flex-wrap gap-2">
+            <div>
+              <i class="bi bi-list-check me-1 text-primary"></i>
+              Hiển thị <strong>${startItem} - ${endItem}</strong> trong <strong>${filtered.length}</strong> thanh toán
+              <span class="badge bg-light text-dark border ms-1">20 bản ghi/trang</span>
+            </div>
+            <div class="text-secondary small">
+              <i class="bi bi-sort-down me-1"></i>Mới nhất trước
+            </div>
+          </div>`;
+
         pageData.forEach((s) => {
           const timeStr = s.createdAt ? new Date(s.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' }) : '';
           html += `
@@ -1353,20 +1398,52 @@
             </div>`;
         });
         container.innerHTML = html;
-        renderSettlementPagination(totalPages);
+        renderSettlementPagination(totalPages, filtered.length);
       }
 
-      function renderSettlementPagination(totalPages) {
+      function renderSettlementPagination(totalPages, totalItems) {
         const container = document.getElementById("settlementPagination");
+        if (!container) return;
+
         if (totalPages <= 1) {
-            container.innerHTML = "";
-            return;
+          container.innerHTML = `
+            <div class="text-center text-muted small py-1">
+              <span class="badge bg-light text-secondary border rounded-pill py-2 px-3 shadow-sm">
+                <i class="bi bi-check2-circle text-success me-1"></i>Trang 1 / 1 (Tổng ${totalItems || 0} thanh toán, 20 bản ghi/trang)
+              </span>
+            </div>`;
+          return;
         }
+
+        let html = '<nav aria-label="Settlement pagination"><ul class="pagination pagination-sm mb-0 shadow-sm">';
         
-        let html = '';
-        html += `<button class="btn btn-sm btn-outline-secondary" ${currentSettlementPage === 1 ? 'disabled' : ''} onclick="changeSettlementPage(${currentSettlementPage - 1})">Trước</button>`;
-        html += `<span class="align-self-center mx-2 small text-muted">Trang ${currentSettlementPage} / ${totalPages}</span>`;
-        html += `<button class="btn btn-sm btn-outline-secondary" ${currentSettlementPage === totalPages ? 'disabled' : ''} onclick="changeSettlementPage(${currentSettlementPage + 1})">Sau</button>`;
+        // Nút Trước
+        html += `<li class="page-item ${currentSettlementPage === 1 ? 'disabled' : ''}">
+          <button class="page-link rounded-start-pill px-3" onclick="changeSettlementPage(${currentSettlementPage - 1})" aria-label="Trước">
+            <i class="bi bi-chevron-left me-1"></i>Trước
+          </button>
+        </li>`;
+
+        // Các số trang
+        for (let p = 1; p <= totalPages; p++) {
+          if (p === 1 || p === totalPages || (p >= currentSettlementPage - 2 && p <= currentSettlementPage + 2)) {
+            const activeClass = p === currentSettlementPage ? 'active' : '';
+            html += `<li class="page-item ${activeClass}">
+              <button class="page-link px-3" onclick="changeSettlementPage(${p})">${p}</button>
+            </li>`;
+          } else if (p === currentSettlementPage - 3 || p === currentSettlementPage + 3) {
+            html += `<li class="page-item disabled"><span class="page-link px-2">...</span></li>`;
+          }
+        }
+
+        // Nút Sau
+        html += `<li class="page-item ${currentSettlementPage === totalPages ? 'disabled' : ''}">
+          <button class="page-link rounded-end-pill px-3" onclick="changeSettlementPage(${currentSettlementPage + 1})" aria-label="Sau">
+            Sau<i class="bi bi-chevron-right ms-1"></i>
+          </button>
+        </li>`;
+
+        html += '</ul></nav>';
         container.innerHTML = html;
       }
 
