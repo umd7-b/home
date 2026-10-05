@@ -11,6 +11,6 @@ public record SettlementRequest(
     @NotNull Long toMemberId,
     @NotNull @Positive BigDecimal amount,
     String note,
-    @NotNull LocalDate periodFrom,
-    @NotNull LocalDate periodTo
+    LocalDate periodFrom,
+    LocalDate periodTo
 ) {}

@@ -92,7 +92,67 @@ public class SummaryService {
         }).collect(Collectors.toList());
     }
 
+    /**
+     * Tính tổng kết tích lũy từ đầu đến hiện tại (không lọc theo tháng).
+     * Đảm bảo kết quả luôn chính xác bất kể tháng nào.
+     */
+    @Transactional(readOnly = true)
+    public List<MemberSummary> getCumulativeSummary() {
+        List<Member> activeMembers = memberRepository.findAll().stream()
+                .filter(Member::isActive)
+                .toList();
+        List<Expense> expenses = expenseRepository.findAllWithPayers();
 
+        Map<Long, BigDecimal> paidMap = new HashMap<>();
+        Map<Long, BigDecimal> owedMap = new HashMap<>();
+        
+        for (Member m : activeMembers) {
+            paidMap.put(m.getId(), BigDecimal.ZERO);
+            owedMap.put(m.getId(), BigDecimal.ZERO);
+        }
+
+        for (Expense expense : expenses) {
+            expense.getPayers().forEach(payer -> {
+                Long pId = payer.getMember().getId();
+                paidMap.put(pId, paidMap.getOrDefault(pId, BigDecimal.ZERO).add(payer.getAmountPaid()));
+            });
+
+            int participantCount = expense.getParticipantMemberIds().size();
+            if (participantCount > 0) {
+                BigDecimal splitAmount = expense.getTotalAmount()
+                        .divide(BigDecimal.valueOf(participantCount), 0, RoundingMode.HALF_UP);
+
+                expense.getParticipantMemberIds().forEach(pId -> {
+                    owedMap.put(pId, owedMap.getOrDefault(pId, BigDecimal.ZERO).add(splitAmount));
+                });
+            }
+        }
+
+        // Lấy TẤT CẢ settlements (không lọc theo period)
+        Map<Long, BigDecimal> settledMap = new HashMap<>();
+        List<Settlement> settlements = settlementRepository.findAllWithMembers();
+        for (Settlement s : settlements) {
+            Long fromId = s.getFromMember().getId();
+            Long toId = s.getToMember().getId();
+            BigDecimal amount = s.getAmount();
+            
+            settledMap.put(fromId, settledMap.getOrDefault(fromId, BigDecimal.ZERO).add(amount));
+            settledMap.put(toId, settledMap.getOrDefault(toId, BigDecimal.ZERO).subtract(amount));
+        }
+
+        return activeMembers.stream().map(m -> {
+            BigDecimal totalPaid = paidMap.get(m.getId());
+            BigDecimal totalOwed = owedMap.get(m.getId());
+            BigDecimal originalBalance = totalPaid.subtract(totalOwed);
+            BigDecimal totalSettled = settledMap.getOrDefault(m.getId(), BigDecimal.ZERO);
+            BigDecimal finalBalance = originalBalance.add(totalSettled);
+            
+            return new MemberSummary(
+                    m.getId(), m.getName(), m.getAvatarColor(), 
+                    totalPaid, totalOwed, originalBalance, totalSettled, finalBalance
+            );
+        }).collect(Collectors.toList());
+    }
 
 
     @Transactional(readOnly = true)

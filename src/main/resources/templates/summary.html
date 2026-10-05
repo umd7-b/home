@@ -208,12 +208,13 @@
     </nav>
 
     <div class="container pb-5">
-      <!-- Bộ lọc ngày -->
+      <!-- Bộ lọc ngày (chỉ cho Thống Kê Ngày, Biểu Đồ, Chi Tiết Hóa Đơn) -->
       <div class="card filter-card shadow-sm mb-4 animate-in">
         <div class="card-body">
           <h5 class="card-title mb-3">
-            <i class="bi bi-funnel-fill text-primary me-2"></i>Lọc Dữ Liệu
+            <i class="bi bi-funnel-fill text-primary me-2"></i>Lọc Thống Kê & Hóa Đơn Theo Ngày
           </h5>
+          <p class="text-muted small mb-2"><i class="bi bi-info-circle me-1"></i>Bộ lọc này chỉ áp dụng cho <strong>Thống Kê Theo Ngày</strong>, <strong>Biểu Đồ</strong> và <strong>Chi Tiết Hóa Đơn</strong>. Bảng Tổng Kết Chia Tiền và Lịch Sử Thanh Toán luôn hiển thị toàn bộ từ đầu đến hiện tại.</p>
           <form id="filterForm" class="row g-3 align-items-end">
             <div class="col-md-4">
               <label class="form-label fw-semibold">Từ ngày</label>
@@ -225,7 +226,7 @@
             </div>
             <div class="col-md-4">
               <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold">
-                <i class="bi bi-search me-1"></i> Xem Tổng Kết
+                <i class="bi bi-search me-1"></i> Xem Thống Kê
               </button>
             </div>
           </form>
@@ -390,6 +391,12 @@
             <i class="bi bi-receipt-cutoff me-2"></i>Chi Tiết Từng Hóa Đơn
           </h5>
           <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="d-flex align-items-center gap-1">
+              <label for="billFilterParticipant" class="text-dark small mb-0 fw-bold text-nowrap">Tôi tham gia:</label>
+              <select id="billFilterParticipant" class="form-select form-select-sm rounded-pill" style="min-width: 140px;" onchange="filterBills()">
+                <option value="">Tất cả</option>
+              </select>
+            </div>
             <div class="d-flex align-items-center gap-1">
               <label for="billFilterPayer" class="text-dark small mb-0 fw-bold text-nowrap">Người trả:</label>
               <select id="billFilterPayer" class="form-select form-select-sm rounded-pill" style="min-width: 140px;" onchange="filterBills()">
@@ -887,7 +894,7 @@
         });
       }
 
-      // === MAIN FORM SUBMIT ===
+      // === MAIN FORM SUBMIT (chỉ lọc Thống Kê Ngày, Biểu Đồ, Chi Tiết Hóa Đơn) ===
       document
         .getElementById("filterForm")
         .addEventListener("submit", function (e) {
@@ -895,16 +902,21 @@
           const from = document.getElementById("fromDate").value;
           const to = document.getElementById("toDate").value;
 
-          loadSummary(from, to);
+          // Chỉ các phần này lọc theo ngày
           loadDailyStats(from, to);
           loadBillHistory(from, to);
-          loadDebts(from, to);
-          loadSettlements(from, to);
         });
 
-      // 1. Bảng Tổng Kết Chia Tiền
-      function loadSummary(from, to) {
-        fetch(`/api/summary?from=${from}&to=${to}`)
+      // Hàm reload tất cả dữ liệu tích lũy (gọi sau mỗi thay đổi)
+      function reloadCumulativeData() {
+        loadCumulativeSummary();
+        loadCumulativeDebts();
+        loadAllSettlements();
+      }
+
+      // 1. Bảng Tổng Kết Chia Tiền (TÍCH LŨY - không lọc theo tháng)
+      function loadCumulativeSummary() {
+        fetch('/api/summary/cumulative')
           .then((res) => res.json())
           .then((data) => {
             const tbody = document.getElementById("summaryTableBody");
@@ -1043,14 +1055,26 @@
           .then((res) => res.json())
           .then((data) => {
             membersList = data;
+            // Populate bộ lọc Người trả
             const select = document.getElementById("billFilterPayer");
-            if (!select) return;
-            const currentVal = select.value;
-            select.innerHTML = '<option value="">Tất cả người trả</option>';
-            membersList.forEach((m) => {
-              select.innerHTML += `<option value="${m.id}">${m.name}</option>`;
-            });
-            if (currentVal) select.value = currentVal;
+            if (select) {
+              const currentVal = select.value;
+              select.innerHTML = '<option value="">Tất cả người trả</option>';
+              membersList.forEach((m) => {
+                select.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+              });
+              if (currentVal) select.value = currentVal;
+            }
+            // Populate bộ lọc Người tham gia
+            const partSelect = document.getElementById("billFilterParticipant");
+            if (partSelect) {
+              const currentPartVal = partSelect.value;
+              partSelect.innerHTML = '<option value="">Tất cả</option>';
+              membersList.forEach((m) => {
+                partSelect.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+              });
+              if (currentPartVal) partSelect.value = currentPartVal;
+            }
           })
           .catch((err) => console.error("Lỗi tải danh sách thành viên:", err));
       }
@@ -1083,8 +1107,10 @@
       function resetBillFilters() {
         const payerSelect = document.getElementById("billFilterPayer");
         const dateInput = document.getElementById("billFilterDate");
+        const partSelect = document.getElementById("billFilterParticipant");
         if (payerSelect) payerSelect.value = '';
         if (dateInput) dateInput.value = '';
+        if (partSelect) partSelect.value = '';
         currentBillPage = 1;
         renderBills();
       }
@@ -1094,8 +1120,9 @@
         const pagination = document.getElementById("billPagination");
         const filterDate = document.getElementById("billFilterDate") ? document.getElementById("billFilterDate").value : '';
         const filterPayerId = document.getElementById("billFilterPayer") ? document.getElementById("billFilterPayer").value : '';
+        const filterParticipantId = document.getElementById("billFilterParticipant") ? document.getElementById("billFilterParticipant").value : '';
 
-        // Lọc theo ngày và/hoặc người trả
+        // Lọc theo ngày, người trả, và/hoặc người tham gia
         let filteredData = allBills;
         if (filterDate) {
           filteredData = filteredData.filter(row => row.date === filterDate);
@@ -1108,6 +1135,15 @@
             }
             if (row.payerList && Array.isArray(row.payerList)) {
               return row.payerList.some(p => p.memberId === pId);
+            }
+            return false;
+          });
+        }
+        if (filterParticipantId) {
+          const partId = Number(filterParticipantId);
+          filteredData = filteredData.filter(row => {
+            if (row.participantMemberIds && Array.isArray(row.participantMemberIds)) {
+              return row.participantMemberIds.includes(partId);
             }
             return false;
           });
@@ -1264,9 +1300,9 @@
         renderBills();
       }
 
-      // 4. Đề Xuất Thanh Toán Nợ
-      function loadDebts(from, to) {
-        fetch(`/api/debts?from=${from}&to=${to}`)
+      // 4. Đề Xuất Thanh Toán Nợ (TÍCH LŨY - không lọc theo tháng)
+      function loadCumulativeDebts() {
+        fetch('/api/debts/cumulative')
           .then((res) => res.json())
           .then((data) => {
             const container = document.getElementById("debtSuggestions");
@@ -1300,7 +1336,7 @@
                     </span>
                   </div>
                   <button class="btn btn-confirm-pay"
-                    onclick="openQrModal(${debt.fromMemberId}, '${debt.fromName}', ${debt.toMemberId}, '${debt.toName}', ${debt.amount}, '${from}', '${to}')">
+                    onclick="openQrModal(${debt.fromMemberId}, '${debt.fromName}', ${debt.toMemberId}, '${debt.toName}', ${debt.amount})">
                     <i class="bi bi-qr-code-scan me-1"></i>Thanh toán
                   </button>
                 </div>`;
@@ -1309,9 +1345,9 @@
           });
       }
 
-      // 5. Lịch Sử Thanh Toán
-      function loadSettlements(from, to) {
-        fetch(`/api/settlements?from=${from}&to=${to}`)
+      // 5. Lịch Sử Thanh Toán (TẤT CẢ - không lọc theo kỳ)
+      function loadAllSettlements() {
+        fetch('/api/settlements/all')
           .then((res) => res.json())
           .then((data) => {
             // Sắp xếp mới nhất lên trước (theo createdAt giảm dần)
@@ -1471,9 +1507,9 @@
       let currentSettlementContext = null;
 
       // Mở modal thanh toán (cho phép chia nhỏ số tiền)
-      function openQrModal(fromId, fromName, toId, toName, totalDebt, periodFrom, periodTo) {
+      function openQrModal(fromId, fromName, toId, toName, totalDebt) {
         currentSettlementContext = {
-          fromId, fromName, toId, toName, totalDebt, periodFrom, periodTo
+          fromId, fromName, toId, toName, totalDebt
         };
 
         document.getElementById("qrPaymentFrom").innerText = fromName;
@@ -1563,7 +1599,7 @@
         }
 
         const note = document.getElementById("qrPaymentNote").value.trim();
-        const { fromId, fromName, toId, toName, periodFrom, periodTo, totalDebt } = currentSettlementContext;
+        const { fromId, fromName, toId, toName, totalDebt } = currentSettlementContext;
 
         const myModal = bootstrap.Modal.getInstance(document.getElementById('qrPaymentModal'));
         if (myModal) myModal.hide();
@@ -1575,14 +1611,12 @@
             fromMemberId: fromId,
             toMemberId: toId,
             amount: amount,
-            note: note,
-            periodFrom: periodFrom,
-            periodTo: periodTo
+            note: note
           })
         }).then(async (res) => {
           if (res.ok) {
             showToast(`✅ Đã ghi nhận thanh toán ${formatMoney(amount)} đ thành công!`);
-            document.getElementById("filterForm").dispatchEvent(new Event("submit"));
+            reloadCumulativeData();
           } else {
             showToast('❌ Lỗi: ' + (await res.text()), true);
           }
@@ -1599,7 +1633,7 @@
               .then(async (res) => {
                 if (res.ok) {
                   showToast('✅ Đã hủy thanh toán thành công');
-                  document.getElementById("filterForm").dispatchEvent(new Event("submit"));
+                  reloadCumulativeData();
                 } else {
                   showToast('❌ Lỗi: ' + (await res.text()), true);
                 }
@@ -1621,6 +1655,7 @@
               .then(async (res) => {
                 if (res.ok) {
                   showToast('✅ Đã xóa hóa đơn');
+                  reloadCumulativeData();
                   document.getElementById("filterForm").dispatchEvent(new Event("submit"));
                 } else {
                   showToast('❌ Lỗi: ' + (await res.text()), true);
@@ -1844,6 +1879,7 @@
             showToast("✅ Đã cập nhật hóa đơn thành công!");
             const modal = bootstrap.Modal.getInstance(document.getElementById("editExpenseModal"));
             if (modal) modal.hide();
+            reloadCumulativeData();
             document.getElementById("filterForm").dispatchEvent(new Event("submit"));
           } else {
             showToast("❌ Lỗi: " + (await res.text()), true);
@@ -1915,8 +1951,11 @@
         new bootstrap.Modal(document.getElementById("payerDetailsModal")).show();
       }
 
-      // Tự động load danh sách người cho bộ lọc và load dữ liệu tổng kết ngay khi vào trang
+      // Tự động load dữ liệu khi vào trang
       loadMembersForFilter();
+      // Load dữ liệu tích lũy (không phụ thuộc bộ lọc ngày)
+      reloadCumulativeData();
+      // Load thống kê và hóa đơn theo bộ lọc ngày mặc định
       document.getElementById("filterForm").dispatchEvent(new Event("submit"));
     </script>
   </body>

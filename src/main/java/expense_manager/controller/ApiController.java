@@ -85,6 +85,11 @@ public class ApiController {
         return summaryService.getSummary(from, to);
     }
 
+    @GetMapping("/summary/cumulative")
+    public List<MemberSummary> getCumulativeSummary() {
+        return summaryService.getCumulativeSummary();
+    }
+
     @GetMapping("/statistics/daily")
     public List<Map<String, Object>> getDailyStats(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -108,6 +113,11 @@ public class ApiController {
         return settlementService.calculateDebts(from, to);
     }
 
+    @GetMapping("/debts/cumulative")
+    public List<DebtDto> getCumulativeDebts() {
+        return settlementService.calculateCumulativeDebts();
+    }
+
     @PostMapping("/settlements")
     public ResponseEntity<String> createSettlement(@Valid @RequestBody SettlementRequest request) {
         settlementService.createSettlement(request);
@@ -119,6 +129,11 @@ public class ApiController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return settlementService.getSettlementHistory(from, to);
+    }
+
+    @GetMapping("/settlements/all")
+    public List<Map<String, Object>> getAllSettlements() {
+        return settlementService.getAllSettlementHistory();
     }
 
     @DeleteMapping("/settlements/{id}")

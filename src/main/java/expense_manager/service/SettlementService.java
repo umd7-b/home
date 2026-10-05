@@ -128,6 +128,82 @@ public class SettlementService {
     }
 
     /**
+     * Tính toán nợ tích lũy từ đầu đến hiện tại (không lọc theo tháng).
+     */
+    @Transactional(readOnly = true)
+    public List<DebtDto> calculateCumulativeDebts() {
+        List<MemberSummary> summaries = summaryService.getCumulativeSummary();
+        
+        List<BalanceEntry> debtors = new ArrayList<>();
+        List<BalanceEntry> creditors = new ArrayList<>();
+        
+        for (MemberSummary ms : summaries) {
+            BigDecimal adjusted = ms.finalBalance();
+            if (adjusted.compareTo(BigDecimal.ZERO) < 0) {
+                debtors.add(new BalanceEntry(ms.memberId(), ms.memberName(), ms.avatarColor(), adjusted));
+            } else if (adjusted.compareTo(BigDecimal.ZERO) > 0) {
+                creditors.add(new BalanceEntry(ms.memberId(), ms.memberName(), ms.avatarColor(), adjusted));
+            }
+        }
+        
+        List<DebtDto> debts = new ArrayList<>();
+        
+        // Bước 1: Exact match
+        for (int i = 0; i < debtors.size(); i++) {
+            BalanceEntry debtor = debtors.get(i);
+            if (debtor.balance.compareTo(BigDecimal.ZERO) == 0) continue;
+            for (int j = 0; j < creditors.size(); j++) {
+                BalanceEntry creditor = creditors.get(j);
+                if (creditor.balance.compareTo(BigDecimal.ZERO) == 0) continue;
+                if (debtor.balance.abs().compareTo(creditor.balance) == 0) {
+                    debts.add(new DebtDto(
+                        debtor.memberId, debtor.name, debtor.color,
+                        creditor.memberId, creditor.name, creditor.color,
+                        debtor.balance.abs()
+                    ));
+                    debtor.balance = BigDecimal.ZERO;
+                    creditor.balance = BigDecimal.ZERO;
+                    break;
+                }
+            }
+        }
+        
+        // Bước 2: Greedy
+        List<BalanceEntry> remainingDebtors = debtors.stream()
+                .filter(b -> b.balance.compareTo(BigDecimal.ZERO) < 0)
+                .sorted(Comparator.comparing(b -> b.balance))
+                .collect(Collectors.toList());
+        
+        List<BalanceEntry> remainingCreditors = creditors.stream()
+                .filter(b -> b.balance.compareTo(BigDecimal.ZERO) > 0)
+                .sorted(Comparator.comparing(b -> ((BalanceEntry) b).balance).reversed())
+                .collect(Collectors.toList());
+        
+        int i = 0, j = 0;
+        while (i < remainingDebtors.size() && j < remainingCreditors.size()) {
+            BalanceEntry debtor = remainingDebtors.get(i);
+            BalanceEntry creditor = remainingCreditors.get(j);
+            BigDecimal debtAmount = debtor.balance.abs();
+            BigDecimal creditAmount = creditor.balance;
+            BigDecimal transferAmount = debtAmount.min(creditAmount);
+            debtor.balance = debtor.balance.add(transferAmount);
+            creditor.balance = creditor.balance.subtract(transferAmount);
+            if (transferAmount.compareTo(BigDecimal.ZERO) > 0) {
+                debts.add(new DebtDto(
+                    debtor.memberId, debtor.name, debtor.color,
+                    creditor.memberId, creditor.name, creditor.color,
+                    transferAmount
+                ));
+            }
+            if (debtor.balance.compareTo(BigDecimal.ZERO) == 0) i++;
+            if (creditor.balance.compareTo(BigDecimal.ZERO) == 0) j++;
+        }
+        
+        debts.sort(Comparator.comparing(DebtDto::amount).reversed());
+        return debts;
+    }
+
+    /**
      * Ghi nhận thanh toán (settlement).
      */
     @Transactional
@@ -136,10 +212,12 @@ public class SettlementService {
         settlement.setFromMember(memberRepository.getReferenceById(request.fromMemberId()));
         settlement.setToMember(memberRepository.getReferenceById(request.toMemberId()));
         settlement.setAmount(request.amount());
-        settlement.setSettlementDate(LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")));
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+        settlement.setSettlementDate(today);
         settlement.setNote(request.note());
-        settlement.setPeriodFrom(request.periodFrom());
-        settlement.setPeriodTo(request.periodTo());
+        // periodFrom/periodTo không còn quan trọng vì hệ thống tích lũy, dùng ngày hiện tại làm mặc định
+        settlement.setPeriodFrom(request.periodFrom() != null ? request.periodFrom() : today);
+        settlement.setPeriodTo(request.periodTo() != null ? request.periodTo() : today);
         return settlementRepository.save(settlement);
     }
 
@@ -149,6 +227,31 @@ public class SettlementService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getSettlementHistory(LocalDate periodFrom, LocalDate periodTo) {
         List<Settlement> settlements = settlementRepository.findByPeriodFromAndPeriodTo(periodFrom, periodTo);
+        List<Map<String, Object>> result = new ArrayList<>();
+        
+        for (Settlement s : settlements) {
+            Map<String, Object> row = new HashMap<>();
+            row.put("id", s.getId());
+            row.put("fromName", s.getFromMember().getName());
+            row.put("fromColor", s.getFromMember().getAvatarColor());
+            row.put("toName", s.getToMember().getName());
+            row.put("toColor", s.getToMember().getAvatarColor());
+            row.put("amount", s.getAmount());
+            row.put("date", s.getSettlementDate());
+            row.put("createdAt", s.getCreatedAt());
+            row.put("note", s.getNote());
+            result.add(row);
+        }
+        
+        return result;
+    }
+
+    /**
+     * Lấy toàn bộ lịch sử thanh toán (không lọc theo kỳ).
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getAllSettlementHistory() {
+        List<Settlement> settlements = settlementRepository.findAllWithMembers();
         List<Map<String, Object>> result = new ArrayList<>();
         
         for (Settlement s : settlements) {

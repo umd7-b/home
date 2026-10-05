@@ -17,4 +17,9 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
            "WHERE e.expenseDate BETWEEN :startDate AND :endDate")
     List<Expense> findByExpenseDateBetween(@Param("startDate") LocalDate startDate, 
                                            @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT DISTINCT e FROM Expense e " +
+           "LEFT JOIN FETCH e.payers p " +
+           "LEFT JOIN FETCH p.member")
+    List<Expense> findAllWithPayers();
 }

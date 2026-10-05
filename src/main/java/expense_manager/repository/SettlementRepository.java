@@ -18,4 +18,8 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
                                                  @Param("periodTo") LocalDate periodTo);
     
     List<Settlement> findBySettlementDateBetween(LocalDate from, LocalDate to);
+
+    @Query("SELECT s FROM Settlement s JOIN FETCH s.fromMember JOIN FETCH s.toMember " +
+           "ORDER BY s.createdAt DESC")
+    List<Settlement> findAllWithMembers();
 }
